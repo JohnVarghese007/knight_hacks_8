@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MedSecure API Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+        }
+        .upload-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 2px dashed #3498db;
+            border-radius: 10px;
+            text-align: center;
+        }
+        input[type="file"] {
+            margin: 10px 0;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            width: 100%;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        .success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .loading {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧾 MedSecure API Test</h1>
+        <p>Test your prescription verification API with real image uploads</p>
+        
+        <div class="upload-section">
+            <h3>📷 Upload Prescription Image</h3>
+            <input type="file" id="imageInput" accept="image/*">
+            <br>
+            <button onclick="verifyPrescription()">🔍 Verify Prescription</button>
+            <button onclick="registerPrescription()">📝 Register Prescription</button>
+        </div>
+        
+        <div class="upload-section">
+            <h3>🧪 Test Endpoints</h3>
+            <button onclick="testHealth()">❤️ Health Check</button>
+            <button onclick="testOCR()">🔬 Test OCR</button>
+            <button onclick="testAPI()">⚡ Test API</button>
+            <button onclick="debugUpload()">🔍 Debug Upload</button>
+        </div>
+        
+        <div id="result"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5149';
+        
+        function showResult(message, type = 'success') {
+            const resultDiv = document.getElementById('result');
+            resultDiv.className = `result ${type}`;
+            resultDiv.textContent = message;
+        }
+        
+        function showLoading(message) {
+            showResult(message, 'loading');
+        }
+        
+        async function verifyPrescription() {
+            const fileInput = document.getElementById('imageInput');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                showResult('Please select an image file first!', 'error');
+                return;
+            }
+            
+            showLoading('🔍 Verifying prescription...');
+            
+            const formData = new FormData();
+            formData.append('image', file);
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/prescription/verify`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                showResult(JSON.stringify(result, null, 2), response.ok ? 'success' : 'error');
+            } catch (error) {
+                showResult(`Error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function registerPrescription() {
+            const fileInput = document.getElementById('imageInput');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                showResult('Please select an image file first!', 'error');
+                return;
+            }
+            
+            showLoading('📝 Registering prescription...');
+            
+            const formData = new FormData();
+            formData.append('image', file);
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/prescription/register`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                showResult(JSON.stringify(result, null, 2), response.ok ? 'success' : 'error');
+            } catch (error) {
+                showResult(`Error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testHealth() {
+            showLoading('❤️ Testing health endpoint...');
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/health`);
+                const result = await response.json();
+                showResult(JSON.stringify(result, null, 2), response.ok ? 'success' : 'error');
+            } catch (error) {
+                showResult(`Error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testOCR() {
+            showLoading('🔬 Testing OCR functionality...');
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/test-ocr`);
+                const result = await response.json();
+                showResult(JSON.stringify(result, null, 2), response.ok ? 'success' : 'error');
+            } catch (error) {
+                showResult(`Error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testAPI() {
+            showLoading('⚡ Testing API endpoint...');
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/test`);
+                const result = await response.json();
+                showResult(JSON.stringify(result, null, 2), response.ok ? 'success' : 'error');
+            } catch (error) {
+                showResult(`Error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function debugUpload() {
+            const fileInput = document.getElementById('imageInput');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                showResult('Please select an image file first!', 'error');
+                return;
+            }
+            
+            showLoading('🔍 Debugging file upload...');
+            
+            const formData = new FormData();
+            formData.append('image', file);
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/debug-upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                showResult(JSON.stringify(result, null, 2), response.ok ? 'success' : 'error');
+            } catch (error) {
+                showResult(`Error: ${error.message}`, 'error');
+            }
+        }
+    </script>
+</body>
+</html>
