@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% block content %}
+  <div class="auth-wrap">
+    <div class="auth-card">
+      <h2>Create an account</h2>
+      <p class="muted">Join MedVerify as an issuer or verifier.</p>
+      <form method="POST" class="form">
+        <label>Username<input type="text" name="username" required></label>
+        <label>Password<input type="password" name="password" required></label>
+        <label>Role
+          <select name="role">
+            <option value="issuer">Issuer (Doctor/Pharmacy)</option>
+            <option value="verifier">Verifier (Authority)</option>
+          </select>
+        </label>
+        <label>Full Name<input type="text" name="name" required></label>
+        <label>License / ID<input type="text" name="license_id" required></label>
+        <label>Organization<input type="text" name="organization" required></label>
+
+        <div class="form-actions">
+          <input class="btn-primary" type="submit" value="Sign Up">
+        </div>
+      </form>
+      <p class="small muted">Already have an account? <a href="{{ url_for('login') }}">Log in</a></p>
+    </div>
+  </div>
+{% endblock %}

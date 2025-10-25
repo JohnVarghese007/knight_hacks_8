@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block content %}
+  <div class="mv-page-card">
+    <h2>Prescription Created</h2>
+    <p class="muted">The prescription has been securely stored. Share or download as needed.</p>
+
+    <div class="result-card">
+      <div class="result-left">
+        <div class="result-label">Code</div>
+        <div class="result-value">{{ code }}</div>
+      </div>
+      <div class="result-right">
+        <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data={{ code }}" alt="QR code">
+      </div>
+    </div>
+
+    <div class="form-actions" style="margin-top:14px">
+      <a class="btn-primary" href="{{ url_for('download_prescription', code=code) }}">Download PDF with QR Code</a>
+      <a class="btn-ghost" href="{{ url_for('home') }}">Back to Dashboard</a>
+    </div>
+  </div>
+{% endblock %}

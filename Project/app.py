@@ -1,4 +1,4 @@
-from flask import Flask, request, send_file, session, redirect, url_for
+from flask import Flask, request, send_file, session, redirect, url_for, render_template
 import requests
 import sqlite3
 import random
@@ -95,22 +95,7 @@ def role_required(role):
 
 @app.route('/')
 def home():
-    if 'username' in session:
-        logged_in_html = f"""
-            <p>Logged in as: {session['username']} ({session['role']})</p>
-            <p><a href="/logout">Logout</a></p>
-        """
-    else:
-        logged_in_html = """
-            <p><a href="/signup">Signup</a></p>
-            <p><a href="/login">Login</a></p>
-        """
-    return f"""
-        <h2>Prescription System</h2>
-        {logged_in_html}
-        <p><a href="/create">Issuer: Create Prescription</a></p>
-        <p><a href="/verify">Verifier: Verify Prescription</a></p>
-    """
+    return render_template('home.html', username=session.get('username'), role=session.get('role'))
 
 # -------------------
 # Signup/Login (No verification)
@@ -138,24 +123,10 @@ def signup():
         except sqlite3.IntegrityError:
             return "Username already exists"
         conn.close()
-        return "Signup successful! You can now <a href='/login'>login</a>."
+        message = "Signup successful! You can now login."
+        return render_template('message.html', title='Signup Successful', message=message, link_url=url_for('login'), link_text='Login')
     
-    return '''
-    <h2>Signup</h2>
-    <form method="POST">
-        Username: <input type="text" name="username" required><br>
-        Password: <input type="password" name="password" required><br>
-        Role: 
-        <select name="role">
-            <option value="issuer">Issuer (Doctor/Pharmacy)</option>
-            <option value="verifier">Verifier (Police/Authority)</option>
-        </select><br>
-        Full Name: <input type="text" name="name" required><br>
-        License/ID: <input type="text" name="license_id" required><br>
-        Organization: <input type="text" name="organization" required><br>
-        <input type="submit" value="Sign Up">
-    </form>
-    '''
+    return render_template('signup.html')
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -173,16 +144,10 @@ def login():
             session['username'] = username
             return redirect(url_for('home'))
         else:
-            return "Invalid username or password."
+            message = "Invalid username or password."
+            return render_template('message.html', title='Login Failed', message=message, link_url=url_for('login'), link_text='Try Again')
     
-    return '''
-    <h2>Login</h2>
-    <form method="POST">
-        Username: <input type="text" name="username" required><br>
-        Password: <input type="password" name="password" required><br>
-        <input type="submit" value="Login">
-    </form>
-    '''
+    return render_template('login.html')
 
 @app.route('/logout')
 def logout():
@@ -204,28 +169,12 @@ def create():
         medications = request.form['medications'].split(',')
         code = generate_code()
         add_prescription(code, doctor_name, doctor_id, patient_name, date, medications)
-        return f"""
-        <h3>Prescription Created!</h3>
-        <p>Code: {code}</p>
-        <p><a href='/download/{code}'>Download PDF with QR Code</a></p>
-        <p><a href='/'>Home</a></p>
-        """
+        return render_template('created.html', code=code)
 
-    return '''
-    <h2>Create Prescription (Issuer)</h2>
-    <form method="POST">
-        Doctor Name: <input type="text" name="doctor_name" required><br>
-        Doctor ID: <input type="text" name="doctor_id" required><br>
-        Patient Name: <input type="text" name="patient_name" required><br>
-        Date: <input type="text" name="date" required><br>
-        Medications (name:quantity, comma-separated): <input type="text" name="medications" required><br>
-        <input type="submit" value="Create Prescription">
-    </form>
-    <p><a href='/'>Home</a></p>
-    '''
+    return render_template('create.html')
 
 # -------------------
-# Verifier: Verify Prescription (Image/QR + Code)
+# Verifier: Combined Verify (Image + Code)
 # -------------------
 @app.route('/verify', methods=['GET', 'POST'])
 @login_required
@@ -233,37 +182,116 @@ def create():
 def verify():
     if request.method == 'POST':
         code = None
-
-        # Check if file was uploaded
+        # Check if file uploaded
         file = request.files.get('prescription')
-        if file:
-            img = Image.open(file)
-            qr_data = decode(img)
-
-            if qr_data:
-                code = qr_data[0].data.decode('utf-8')
-            else:
-                # fallback to OCR
-                file.seek(0)
+        if file and file.filename != '':
+            fname = file.filename.lower()
+            # Handle PDF uploads
+            if fname.endswith('.pdf') or file.mimetype == 'application/pdf':
+                # read bytes once
                 file_bytes = file.read()
-                response = requests.post(
-                    "https://api.ocr.space/parse/image",
-                    files={"filename": ("prescription.png", file_bytes)},
-                    data={"apikey": OCR_API_KEY, "language": "eng"}
-                )
-                result = response.json()
-                parsed_results = result.get("ParsedResults")
-                if parsed_results:
-                    text = parsed_results[0].get("ParsedText", "")
-                    for line in text.split("\n"):
+
+                # 1) Try to extract text from PDF using PyPDF2 (if installed)
+                extracted_text = ''
+                try:
+                    from PyPDF2 import PdfReader
+                    reader = PdfReader(BytesIO(file_bytes))
+                    for page in reader.pages:
+                        try:
+                            extracted_text += (page.extract_text() or '') + "\n"
+                        except Exception:
+                            # continue if a page fails
+                            continue
+                except Exception:
+                    extracted_text = ''
+
+                if extracted_text:
+                    for line in extracted_text.splitlines():
                         if "Prescription Code" in line or "Code" in line:
                             code = line.split(":")[-1].strip()
                             break
 
-        # If code field is filled, use it (overrides OCR/QR if both provided)
-        form_code = request.form.get('code', '').strip()
-        if form_code:
-            code = form_code
+                # 2) If no code yet, try to decode QR from first PDF page using pdf2image (if available)
+                if not code:
+                    try:
+                        from pdf2image import convert_from_bytes
+                        images = convert_from_bytes(file_bytes)
+                        if images:
+                            qr_data = decode(images[0])
+                            if qr_data:
+                                code = qr_data[0].data.decode('utf-8')
+                    except Exception:
+                        # pdf2image not available or conversion failed, continue
+                        pass
+
+                # 3) Fallback to OCR.Space for PDF if still no code
+                if not code:
+                    try:
+                        response = requests.post(
+                            "https://api.ocr.space/parse/image",
+                            files={"filename": ("prescription.pdf", file_bytes)},
+                            data={"apikey": OCR_API_KEY, "language": "eng"}
+                        )
+                        result = response.json()
+                        parsed_results = result.get("ParsedResults")
+                        if parsed_results:
+                            text = parsed_results[0].get("ParsedText", "")
+                            for line in text.split("\n"):
+                                if "Prescription Code" in line or "Code" in line:
+                                    code = line.split(":")[-1].strip()
+                                    break
+                    except Exception:
+                        # network/OCR failure - leave code as None
+                        pass
+            else:
+                # treat as image
+                try:
+                    file.seek(0)
+                    img = Image.open(file)
+                    qr_data = decode(img)
+                    if qr_data:
+                        code = qr_data[0].data.decode('utf-8')
+                    else:
+                        # fallback to OCR
+                        file.seek(0)
+                        file_bytes = file.read()
+                        response = requests.post(
+                            "https://api.ocr.space/parse/image",
+                            files={"filename": ("prescription.png", file_bytes)},
+                            data={"apikey": OCR_API_KEY, "language": "eng"}
+                        )
+                        result = response.json()
+                        parsed_results = result.get("ParsedResults")
+                        if parsed_results:
+                            text = parsed_results[0].get("ParsedText", "")
+                            for line in text.split("\n"):
+                                if "Prescription Code" in line or "Code" in line:
+                                    code = line.split(":")[-1].strip()
+                                    break
+                except Exception:
+                    # Image open/QR decode failed; try OCR as last resort
+                    try:
+                        file.seek(0)
+                        file_bytes = file.read()
+                        response = requests.post(
+                            "https://api.ocr.space/parse/image",
+                            files={"filename": ("prescription.png", file_bytes)},
+                            data={"apikey": OCR_API_KEY, "language": "eng"}
+                        )
+                        result = response.json()
+                        parsed_results = result.get("ParsedResults")
+                        if parsed_results:
+                            text = parsed_results[0].get("ParsedText", "")
+                            for line in text.split("\n"):
+                                if "Prescription Code" in line or "Code" in line:
+                                    code = line.split(":")[-1].strip()
+                                    break
+                    except Exception:
+                        pass
+
+        # If code entered manually
+        if not code:
+            code = request.form.get('code', '').strip()
 
         if not code:
             return "Cannot detect prescription code. Please upload an image or enter a code."
@@ -272,32 +300,12 @@ def verify():
         if not db_entry:
             return f"Prescription code {code} NOT found in database."
 
+        # Extract fields and render result (inside POST branch so db_entry always defined)
         doctor_name, doctor_id, patient_name, date, medications = db_entry[1], db_entry[2], db_entry[3], db_entry[4], db_entry[5].split(',')
-        return f"""
-        <h3>Prescription Verified ✅</h3>
-        <h4>Details from Database:</h4>
-        <pre>
-        Code: {code}
-        Doctor Name: {doctor_name}
-        Doctor ID: {doctor_id}
-        Patient Name: {patient_name}
-        Date: {date}
-        Medications: {', '.join(medications)}
-        </pre>
-        <p><a href='/verify'>Verify Another</a></p>
-        <p><a href='/'>Home</a></p>
-        """
+        return render_template('verify_result.html', code=code, doctor_name=doctor_name, doctor_id=doctor_id, patient_name=patient_name, date=date, medications=medications)
 
-    # GET request: show combined form
-    return '''
-    <h2>Verify Prescription</h2>
-    <form method="POST" enctype="multipart/form-data">
-        Upload Prescription Image or QR Code: <input type="file" name="prescription" accept="image/*"><br>
-        OR Enter Prescription Code: <input type="text" name="code"><br>
-        <input type="submit" value="Verify Prescription">
-    </form>
-    <p><a href='/'>Home</a></p>
-    '''
+    # GET -> show verify form
+    return render_template('verify.html')
 
 # -------------------
 # Download PDF with QR
@@ -351,6 +359,7 @@ def download_prescription(code):
     c.save()
     buffer.seek(0)
     return send_file(buffer, as_attachment=True, download_name=f"Prescription_{code}.pdf", mimetype='application/pdf')
+
 
 # -------------------
 # Run App

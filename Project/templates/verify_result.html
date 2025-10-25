@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+{% block content %}
+  <div class="mv-page-card">
+    <h2>Verification Result</h2>
+
+    <div class="result-verified">
+      <div class="result-left">
+        <div class="result-label">Code</div>
+        <div class="result-value">{{ code }}</div>
+        <div class="small muted">Doctor</div>
+        <div class="result-sub">{{ doctor_name }} ({{ doctor_id }})</div>
+        <div class="small muted">Patient</div>
+        <div class="result-sub">{{ patient_name }}</div>
+        <div class="small muted">Date</div>
+        <div class="result-sub">{{ date }}</div>
+        <div class="small muted">Medications</div>
+        <ul class="mv-list">
+          {% for med in medications %}
+            <li>{{ med }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      <div class="result-right">
+        <div class="status-badge success">Valid Prescription</div>
+        <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data={{ code }}" alt="QR code">
+        <div style="margin-top:10px">
+          <a class="btn-primary" href="{{ url_for('download_prescription', code=code) }}">Download PDF</a>
+          <a class="btn-ghost" href="{{ url_for('verify') }}">Verify Another</a>
+        </div>
+      </div>
+    </div>
+
+  </div>
+{% endblock %}

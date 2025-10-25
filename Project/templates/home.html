@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+{% block content %}
+  <section class="mv-hero">
+    <div class="mv-hero-inner">
+      <h1>MedVerify</h1>
+      <p class="subtitle">Secure digital prescriptions — issued and verified with confidence.</p>
+      <div class="hero-actions">
+        <a class="btn-primary" href="{{ url_for('create') }}">Create Prescription</a>
+        <a class="btn-ghost" href="{{ url_for('verify') }}">Verify Prescription</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="mv-dashboard">
+    <div class="mv-grid">
+      <div class="mv-card">
+        <h3>Quick Actions</h3>
+        <ul class="mv-list">
+          <li><a href="{{ url_for('create') }}">Create New Prescription</a></li>
+          <li><a href="{{ url_for('verify') }}">Verify a Prescription</a></li>
+        </ul>
+      </div>
+
+      <div class="mv-card">
+        <h3>Account</h3>
+        {% if username %}
+          <p>Signed in as <strong>{{ username }}</strong></p>
+          <p class="muted">Role: {{ role }}</p>
+        {% else %}
+          <p>Please <a href="{{ url_for('login') }}">login</a> or <a href="{{ url_for('signup') }}">sign up</a>.</p>
+        {% endif %}
+      </div>
+
+      <div class="mv-card">
+        <h3>About</h3>
+        <p class="muted">MedVerify helps issuers generate official prescription PDFs with embedded QR codes and allows verifiers to confirm authenticity quickly.</p>
+      </div>
+    </div>
+  </section>
+
+{% endblock %}

@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+{% block content %}
+  <div class="mv-page-card">
+    <h2>Verify Prescription</h2>
+    <p class="muted">Upload an image/pdf of the prescription or enter the prescription code manually.</p>
+
+    <form method="POST" enctype="multipart/form-data" class="form">
+      <label>Upload Prescription (Image or PDF)
+        <input type="file" name="prescription" accept="image/*,application/pdf">
+      </label>
+
+      <div class="divider">OR</div>
+
+      <label>Enter Prescription Code
+        <input type="text" name="code" placeholder="Enter code, e.g. ABC12345">
+      </label>
+
+      <div class="form-actions">
+        <input class="btn-primary" type="submit" value="Verify">
+        <a class="btn-ghost" href="{{ url_for('home') }}">Cancel</a>
+      </div>
+    </form>
+  </div>
+{% endblock %}

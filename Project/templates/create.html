@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block content %}
+  <div class="mv-page-card">
+    <h2>Create Prescription</h2>
+    <p class="muted">Enter prescription details below. Fields are required.</p>
+    <form method="POST" class="form">
+      <div class="form-grid">
+        <label>Doctor Name<input type="text" name="doctor_name" required value="{{ session.get('username','') }}"></label>
+        <label>Doctor ID<input type="text" name="doctor_id" required></label>
+        <label>Patient Name<input type="text" name="patient_name" required></label>
+        <label>Date<input type="text" name="date" required placeholder="YYYY-MM-DD"></label>
+        <label class="full">Medications (name:quantity, comma-separated)
+          <input type="text" name="medications" required placeholder="e.g. Amoxicillin:500mg x2, Paracetamol:500mg x3">
+        </label>
+      </div>
+      <div class="form-actions">
+        <input class="btn-primary" type="submit" value="Generate Prescription">
+        <a class="btn-ghost" href="{{ url_for('home') }}">Cancel</a>
+      </div>
+    </form>
+  </div>
+{% endblock %}
