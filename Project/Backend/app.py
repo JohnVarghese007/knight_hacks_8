@@ -11,11 +11,12 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import qrcode
 from PIL import Image
 from pyzbar.pyzbar import decode
+from .env import OCR_API_KEY
 
 app = Flask(__name__)
 app.secret_key = "supersecretkey123"  # Change in production
 
-OCR_API_KEY = "K89542782088957"  # Replace with your OCR.Space API key
+OCR_API_KEY = OCR_API_KEY
 DB_FILE = "prescriptions.db"
 
 # -------------------
