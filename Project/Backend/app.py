@@ -51,7 +51,8 @@ def init_db():
             patient_name TEXT,
             date TEXT,
             medications TEXT,
-            hash TEXT
+            hash TEXT,
+            previous_hash TEXT
         )
     ''')
     
@@ -90,7 +91,24 @@ def init_db():
 def generate_code(length=8):
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=length))
 
-def add_prescription(code, doctor_name, doctor_id, patient_name, date, medications):
+def get_previous_code():
+    with sqlite3.connect(DB_FILE) as conn:
+        c = conn.cursor()
+        
+        # Backup existing prescriptions if table exists
+        try:
+            c.execute("SELECT hash FROM prescriptions ORDER BY id DESC LIMIT 1;")
+            result = c.fetchone()
+
+            if result:
+                return result[0]
+            else:
+                return ''
+        except Exception as e:
+            print(f"CRITICAL ERROR: An unexpected error occurred: {e}")
+            return ''
+
+def add_prescription(code, previous_code, doctor_name, doctor_id, patient_name, date, medications):
     # Create prescription data for hashing
     prescription_data = {
         'code': code,
@@ -393,7 +411,8 @@ def create():
         date = request.form['date']
         medications = request.form['medications'].split(',')
         code = generate_code()
-        add_prescription(code, doctor_name, doctor_id, patient_name, date, medications)
+        previous_code = get_previous_code()
+        add_prescription(code, previous_code, doctor_name, doctor_id, patient_name, date, medications)
         return render_template('created.html', code=code)
 
     return render_template('create.html')
