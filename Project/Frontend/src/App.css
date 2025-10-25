@@ -1,21 +1,143 @@
-.App {
+:root{
+  --bg:#071630; /* deep navy */
+  --panel:#0f3250; /* dark blue panel */
+  --accent:#1e90ff; /* bright accent */
+  --muted:#9fb8d6;
+  --text:#eaf6ff;
+}
+
+html,body,#root{
+  height:100%;
+}
+
+body{
+  margin:0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+  background: linear-gradient(180deg, var(--bg) 0%, #021423 100%);
+  color:var(--text);
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+}
+
+.App{
+  min-height:100%;
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+}
+
+.App-header{
+  background:var(--panel);
+  min-height:84px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  position:relative; /* allow absolutely positioned children (navbar) */
+  font-size:calc(12px + 0.4vmin);
+  color:var(--text);
+  padding:16px 24px;
+  box-shadow: 0 2px 8px rgba(2,10,20,0.6);
+}
+
+main{
+  padding:28px;
+  max-width:980px;
+  margin:24px auto;
+  width:100%;
+}
+
+/* Add a black background color to the top navigation */
+.topnav {
+  background-color: #333;
+  overflow: hidden;
+}
+
+/* Style the links inside the navigation bar */
+.topnav a {
+  float: left;
+  color: #f2f2f2;
   text-align: center;
+  padding: 14px 16px;
+  text-decoration: none;
+  font-size: 17px;
 }
 
-.App-header {
-  background-color: #282c34;
-  min-height: 20vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
+/* Change the color of links on hover */
+.topnav a:hover {
+  background-color: #ddd;
+  color: black;
+}
+
+/* Add a color to the active/current link */
+.topnav a.active {
+  background-color: #04AA6D;
   color: white;
-  padding: 20px;
 }
 
-main {
-  padding: 20px;
-  max-width: 800px;
-  margin: 0 auto;
+/* Navbar placed at top-right of the header */
+/* Place navbar at top-left corner of header */
+.navbar {
+  position: absolute;
+  top: 12px;
+  left: 20px;
+}
+
+.navbar ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.navbar a {
+  color: var(--text);
+  text-decoration: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-weight:600;
+  font-size:0.95rem;
+  background: transparent;
+  transition: background-color .15s ease, color .15s ease;
+}
+
+.navbar a:hover{
+  background: rgba(255,255,255,0.04);
+  color:var(--accent);
+}
+
+/* Responsive: on small screens place the navbar below the header content */
+@media (max-width: 600px) {
+  .navbar {
+    position: static;
+    margin-top: 12px;
+    text-align: center;
+  }
+  .navbar ul {
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+}
+
+/* Buttons and panels theme */
+.submit-button,
+button{
+  background:var(--accent);
+  color: #042033;
+  border: none;
+  padding:10px 14px;
+  border-radius:6px;
+  cursor:pointer;
+  font-weight:600;
+}
+
+.submit-button:disabled{opacity:0.6}
+
+/* Panels */
+.file-upload, .result{
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+  border:1px solid rgba(255,255,255,0.04);
+  box-shadow: 0 6px 18px rgba(2,10,20,0.6);
 }

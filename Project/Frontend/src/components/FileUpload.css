@@ -1,21 +1,22 @@
 .file-upload {
-  max-width: 600px;
+  max-width: 700px;
   margin: 20px auto;
   padding: 20px;
+  color: var(--text);
 }
 
 .upload-container {
-  border: 2px dashed #ccc;
-  border-radius: 4px;
-  padding: 20px;
+  border: 2px dashed rgba(255,255,255,0.06);
+  border-radius: 8px;
+  padding: 22px;
   text-align: center;
   margin-bottom: 20px;
-  background-color: #f8f9fa;
+  background-color: rgba(255,255,255,0.02);
   cursor: pointer;
 }
 
 .upload-container:hover {
-  border-color: #007bff;
+  border-color: rgba(30,144,255,0.6);
 }
 
 .file-input {
@@ -24,8 +25,8 @@
 
 .file-label {
   display: block;
-  font-size: 1.2em;
-  color: #666;
+  font-size: 1.1em;
+  color: var(--muted);
   cursor: pointer;
 }
 
@@ -36,45 +37,45 @@
 
 .preview img {
   max-width: 100%;
-  max-height: 300px;
-  border-radius: 4px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  max-height: 320px;
+  border-radius: 8px;
+  box-shadow: 0 8px 18px rgba(2,10,20,0.6);
 }
 
 .submit-button {
   display: block;
   width: 100%;
-  padding: 10px;
-  background-color: #007bff;
-  color: white;
+  padding: 12px;
+  background: var(--accent);
+  color: #042033;
   border: none;
-  border-radius: 4px;
-  font-size: 1.1em;
+  border-radius: 8px;
+  font-size: 1.05em;
   cursor: pointer;
-  transition: background-color 0.3s;
+  transition: background-color 0.18s ease;
 }
 
 .submit-button:disabled {
-  background-color: #ccc;
+  opacity: 0.6;
   cursor: not-allowed;
 }
 
 .submit-button:hover:not(:disabled) {
-  background-color: #0056b3;
+  filter: brightness(0.95);
 }
 
 .result {
   margin-top: 20px;
   padding: 20px;
-  background-color: #f8f9fa;
-  border-radius: 4px;
+  background: rgba(255,255,255,0.02);
+  border-radius: 8px;
 }
 
 .result pre {
   white-space: pre-wrap;
   word-wrap: break-word;
-  background-color: #fff;
-  padding: 10px;
-  border-radius: 4px;
-  border: 1px solid #ddd;
+  background: rgba(0,0,0,0.15);
+  padding: 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.03);
 }
