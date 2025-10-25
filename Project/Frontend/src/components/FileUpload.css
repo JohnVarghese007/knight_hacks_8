@@ -6,17 +6,33 @@
 }
 
 .upload-container {
-  border: 2px dashed rgba(255,255,255,0.06);
+  --border: 2px dashed #ccc;
+  border: var(--border);
   border-radius: 8px;
-  padding: 22px;
+  padding: 24px;
   text-align: center;
   margin-bottom: 20px;
   background-color: rgba(255,255,255,0.02);
   cursor: pointer;
+  transition: border-color 150ms ease, background-color 150ms ease, box-shadow 150ms ease;
 }
 
 .upload-container:hover {
   border-color: rgba(30,144,255,0.6);
+}
+
+/* state when dragging file over the drop area */
+.upload-container.dragover,
+.upload-container.drag-over {
+  background-color: #eef6ff;
+  border-color: #007bff;
+  box-shadow: 0 6px 18px rgba(2,6,23,0.08);
+}
+
+/* accessible focus state */
+.upload-container:focus {
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(0,123,255,0.12);
 }
 
 .file-input {
@@ -28,6 +44,13 @@
   font-size: 1.1em;
   color: var(--muted);
   cursor: pointer;
+}
+
+.file-hint {
+  display: block;
+  margin-top: 8px;
+  font-size: 0.9em;
+  color: #888;
 }
 
 .preview {
@@ -55,6 +78,10 @@
   transition: background-color 0.18s ease;
 }
 
+.submit-button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
 .submit-button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
@@ -74,8 +101,24 @@
 .result pre {
   white-space: pre-wrap;
   word-wrap: break-word;
-  background: rgba(0,0,0,0.15);
-  padding: 12px;
-  border-radius: 6px;
-  border: 1px solid rgba(255,255,255,0.03);
+  background-color: #fff;
+  padding: 10px;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+}
+
+/* Responsive tweaks */
+@media (max-width: 480px) {
+  .file-upload {
+    padding: 12px;
+    margin: 12px;
+  }
+
+  .upload-container {
+    padding: 16px;
+  }
+
+  .preview img {
+    max-height: 200px;
+  }
 }

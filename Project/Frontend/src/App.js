@@ -2,6 +2,7 @@ import React from 'react';
 
 function Navbar() {
   return (
+<<<<<<< HEAD
     <nav style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1 }}>
       <ul style={{
         listStyle: 'none',
@@ -250,10 +251,21 @@ function HomePage() {
           Learn More
         </button>
       </section>
+=======
+    <div className="App">
+      <header className="App-header">
+        <h3>RxVerify</h3>
+        <Navbar />
+      </header>
+      <FileUpload />
+      <main>
+      </main>
+>>>>>>> f86ceee9c0fb4d36a044dc354bd5c9d47f7b0141
     </div>
   );
 }
 
+<<<<<<< HEAD
 export default function App() {
   return (
     <div style={{
@@ -292,3 +304,20 @@ export default function App() {
     </div>
   );
 }
+=======
+function Navbar() {
+
+    return (
+        <nav className="navbar">
+            <ul>
+                <li><a href="/">Home</a></li>
+                <li><a href="/Sign Up">Sign Up</a></li>
+                <li><a href="/login">Login</a></li>
+            </ul>
+        </nav>
+    );
+}
+
+
+export default App;
+>>>>>>> f86ceee9c0fb4d36a044dc354bd5c9d47f7b0141
