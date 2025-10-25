@@ -52,6 +52,10 @@ body{
 .mv-role{color:var(--mv-muted);font-weight:400;margin-left:6px}
 .mv-logout{color:#fff;background:var(--mv-accent);padding:8px 12px;border-radius:8px;text-decoration:none}
 
+/* Ensure logout link has priority over generic nav link styles and is always readable */
+.mv-nav a.mv-logout{ color: #ffffff !important; background: linear-gradient(90deg, var(--mv-primary), var(--mv-accent)) !important; box-shadow: 0 2px 8px rgba(10,88,202,0.12); }
+.mv-nav a.mv-logout:hover{ opacity:0.95; transform: translateY(-1px); }
+
 /* Hero */
 .mv-hero{background:transparent;padding:36px 0}
 .mv-hero-inner{background:var(--mv-surface);padding:28px;border-radius:14px;box-shadow:var(--mv-shadow);display:flex;flex-direction:column;gap:8px}
