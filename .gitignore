@@ -57,6 +57,9 @@ lcov.info
 !.env.example
 
 # --- Frontend: Node / Vite / Next (if you switch later) ---
+# Node modules (ignore root and any nested node_modules)
+node_modules/
+**/node_modules/
 .ui/node_modules/
 .ui/dist/
 .ui/.vite/
