@@ -82,3 +82,10 @@ tmp/
 !.vscode/settings.json
 !.vscode/launch.json
 
+
+# --- new stuff starts here
+Project/Backend/.venv
+Project/__pycache__
+Project/Backend/
+
+Project/Frontend/node_modules/
