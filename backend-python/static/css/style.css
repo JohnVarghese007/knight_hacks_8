@@ -1,0 +1,44 @@
+body {
+  font-family: 'Inter', sans-serif;
+  background: linear-gradient(135deg, #e3f2fd, #ffffff);
+  min-height: 100vh;
+}
+
+#upload-card {
+  max-width: 420px;
+  border-radius: 15px;
+  transition: all 0.3s ease;
+}
+
+#upload-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+}
+
+#previewImage {
+  max-width: 100%;
+  height: auto;
+  border: 2px solid #e0e0e0;
+}
+
+.btn-primary {
+  background-color: #007bff;
+  border: none;
+  transition: 0.3s;
+}
+
+.btn-primary:hover {
+  background-color: #0056b3;
+}
+
+.alert-success {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+  border: none;
+}
+
+.alert-danger {
+  background-color: #ffebee;
+  color: #c62828;
+  border: none;
+}
