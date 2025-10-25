@@ -3,6 +3,7 @@ import requests
 import sqlite3
 import random
 import string
+import os
 from io import BytesIO
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
@@ -11,12 +12,15 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import qrcode
 from PIL import Image
 from pyzbar.pyzbar import decode
-from .env import OCR_API_KEY
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+OCR_API_KEY = os.getenv('OCR_API_KEY')
 
 app = Flask(__name__)
 app.secret_key = "supersecretkey123"  # Change in production
 
-OCR_API_KEY = OCR_API_KEY
 DB_FILE = "prescriptions.db"
 
 # -------------------
