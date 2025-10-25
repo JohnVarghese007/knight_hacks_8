@@ -1,7 +1,45 @@
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using RxVerify.Api.Services;
 using Tesseract;
 using System.Text;
 
-namespace RxVerify.Api.Services
+var builder = WebApplication.CreateBuilder(args);
+
+// Add services to the container.
+builder.Services.AddControllers();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
+// Register application services (OCR, blockchain, verification)
+builder.Services.AddSingleton<IOcrService, OcrService>();
+builder.Services.AddSingleton<IBlockchainService, BlockchainService>();
+builder.Services.AddSingleton<IPrescriptionVerificationService, PrescriptionVerificationService>();
+
+var app = builder.Build();
+
+// Configure the HTTP request pipeline.
+if (app.Environment.IsDevelopment())
+{
+    app.UseDeveloperExceptionPage();
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
+app.UseRouting();
+app.UseAuthorization();
+
+app.MapControllers();
+
+app.MapGet("/", () => Results.Text("RxVerify.Api running"));
+
+app.Run();
+
+// The following classes are legacy/local OCR helper implementations kept in a separate namespace
+// to avoid type name collisions with the main services implementation.
+namespace RxVerify.Api.OcrLegacy
 {
     public interface IOcrService
     {

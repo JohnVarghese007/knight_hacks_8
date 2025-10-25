@@ -79,3 +79,9 @@ tmp/
 !.vscode/settings.json
 !.vscode/launch.json
 
+
+# Local virtualenv and caches
+Project/.venv/
+Project/__pycache__/
+*.pyc
+

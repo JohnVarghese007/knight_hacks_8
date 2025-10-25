@@ -1,0 +1,69 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>RxVerify - Home</title>
+    <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>RxVerify System</h1>
+            <p class="muted">Choose a user interface to work with:</p>
+            
+            <div class="nav" style="margin: 24px 0">
+                <a href="/static/react_ui.html"><button>Open React UI</button></a>
+                <a href="/static/angular_ui.html"><button>Open Angular UI</button></a>
+            </div>
+
+            <div class="row">
+                <div class="col">
+                    <h3>Create Account</h3>
+                    <form action="/signup" method="POST">
+                        <label>Username</label>
+                        <input type="text" name="username" required />
+                        
+                        <label>Password</label>
+                        <input type="password" name="password" required />
+                        
+                        <label>Role</label>
+                        <select name="role" required>
+                            <option value="issuer">Issuer (Doctor/Pharmacy)</option>
+                            <option value="verifier">Verifier (Police/Authority)</option>
+                        </select>
+                        
+                        <label>Full Name</label>
+                        <input type="text" name="name" required />
+                        
+                        <label>License/ID</label>
+                        <input type="text" name="license_id" required />
+                        
+                        <label>Organization</label>
+                        <input type="text" name="organization" required />
+                        
+                        <div style="margin-top:12px">
+                            <button type="submit">Sign Up</button>
+                        </div>
+                    </form>
+                </div>
+                
+                <div class="col">
+                    <h3>Login</h3>
+                    <form action="/login" method="POST">
+                        <label>Username</label>
+                        <input type="text" name="username" required />
+                        
+                        <label>Password</label>
+                        <input type="password" name="password" required />
+                        
+                        <div style="margin-top:12px">
+                            <button type="submit">Log In</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

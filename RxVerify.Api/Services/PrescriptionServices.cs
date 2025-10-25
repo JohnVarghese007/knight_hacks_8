@@ -1,7 +1,8 @@
 using RxVerify.Api.Models;
 using System.Security.Cryptography;
 using System.Text;
-using IronOcr;
+using System.IO;
+using Tesseract;
 
 namespace RxVerify.Api.Services;
 
@@ -23,6 +24,13 @@ public interface IPrescriptionVerificationService
 
 public class OcrService : IOcrService
 {
+    private readonly ILogger<OcrService> _logger;
+
+    public OcrService(ILogger<OcrService> logger)
+    {
+        _logger = logger;
+    }
+
     public async Task<PrescriptionModel> ExtractPrescriptionDataAsync(byte[] imageBytes)
     {
         try
@@ -39,26 +47,64 @@ public class OcrService : IOcrService
                 throw new ArgumentException("Image data too small - likely not a real image");
             }
 
-            // Initialize IronOCR
-            var ocr = new IronTesseract();
+            // Use Tesseract (writes bytes to temp file then processes image)
+            string extractedText = string.Empty;
+            var tempFilePath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.png");
+            await File.WriteAllBytesAsync(tempFilePath, imageBytes);
+            try
+            {
+                // tessdata folder is copied to output (see csproj)
+                var tessDataPath = Path.Combine(AppContext.BaseDirectory, "tessdata");
+                if (!Directory.Exists(tessDataPath))
+                {
+                    var msg = $"tessdata folder not found at '{tessDataPath}'. Make sure tessdata is copied to output or exists there.";
+                    _logger?.LogError(msg);
+                    throw new DirectoryNotFoundException(msg);
+                }
+
+                try
+                {
+                    using var engine = new TesseractEngine(tessDataPath, "eng", EngineMode.Default);
+                    using var img = Pix.LoadFromFile(tempFilePath);
+                    using var page = engine.Process(img);
+                    extractedText = page.GetText() ?? string.Empty;
+
+                    // Record confidence and log snippet to help debugging OCR quality
+                    double confidence = 0;
+                    try
+                    {
+                        confidence = page.GetMeanConfidence();
+                        _logger?.LogInformation("OCR mean confidence: {Confidence}", confidence);
+                    }
+                    catch { }
+
+                    var snippet = extractedText.Length > 400 ? extractedText.Substring(0, 400) + "..." : extractedText;
+                    _logger?.LogInformation("OCR extracted text (snippet): {Snippet}", snippet);
+
+                    // attach confidence to prescription after parsing
+                    var prescriptionTemp = ParsePrescriptionText(extractedText);
+                    prescriptionTemp.RawText = extractedText;
+                    prescriptionTemp.Hash = GenerateHash(extractedText);
+                    prescriptionTemp.OcrConfidence = confidence;
+
+                    return prescriptionTemp;
+                }
+                catch (DllNotFoundException dllEx)
+                {
+                    // Native Tesseract/Leptonica DLL missing
+                    _logger?.LogError(dllEx, "Native Tesseract/Leptonica DLL missing. Ensure native runtime libraries are available.");
+                    throw;
+                }
+            }
+            finally
+            {
+                if (File.Exists(tempFilePath))
+                    File.Delete(tempFilePath);
+            }
             
-            // Configure OCR settings
-            ocr.Language = OcrLanguage.English;
-            ocr.Configuration.TesseractVersion = TesseractVersion.Tesseract5;
-            
-            // Perform OCR on the image
-            using var input = new OcrInput(imageBytes);
-            var result = await Task.Run(() => ocr.Read(input));
-            
-            // Extract text
-            var extractedText = result.Text;
-            
-            // Parse the extracted text to find prescription details
-            var prescription = ParsePrescriptionText(extractedText);
-            prescription.RawText = extractedText;
-            prescription.Hash = GenerateHash(extractedText);
-            
-            return prescription;
+            // (Parsing+return handled above after OCR success)
+            // Should not reach here because successful OCR returns earlier
+            return new PrescriptionModel();
         }
         catch (Exception ex)
         {

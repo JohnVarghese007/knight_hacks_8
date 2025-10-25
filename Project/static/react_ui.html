@@ -1,0 +1,697 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>RxVerify - Prescription Management</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 20px;
+        color: #333;
+      }
+      
+      .container {
+        max-width: 800px;
+        margin: 0 auto;
+      }
+      
+      .card {
+        background: white;
+        border-radius: 20px;
+        padding: 48px;
+        box-shadow: 0 25px 70px rgba(0,0,0,0.35);
+        animation: fadeIn 0.6s ease;
+      }
+      
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(30px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      
+      .header {
+        text-align: center;
+        margin-bottom: 40px;
+      }
+      
+      h1 {
+        color: #667eea;
+        font-size: 42px;
+        margin-bottom: 12px;
+        font-weight: 800;
+        letter-spacing: -1px;
+      }
+      
+      .subtitle {
+        color: #6b7280;
+        font-size: 16px;
+        font-weight: 500;
+      }
+      
+      .nav {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 40px;
+        background: #f3f4f6;
+        padding: 6px;
+        border-radius: 12px;
+      }
+      
+      .nav button {
+        flex: 1;
+        padding: 16px 28px;
+        border: none;
+        background: transparent;
+        color: #6b7280;
+        font-size: 16px;
+        font-weight: 700;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        position: relative;
+      }
+      
+      .nav button:hover {
+        color: #667eea;
+        transform: translateY(-1px);
+      }
+      
+      .nav button.active {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+      }
+      
+      .tab-content {
+        animation: slideIn 0.4s ease;
+      }
+      
+      @keyframes slideIn {
+        from { opacity: 0; transform: translateX(-20px); }
+        to { opacity: 1; transform: translateX(0); }
+      }
+      
+      h3 {
+        color: #1f2937;
+        font-size: 24px;
+        margin-bottom: 28px;
+        font-weight: 700;
+      }
+      
+      form {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+      }
+      
+      .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      
+      label {
+        color: #374151;
+        font-weight: 700;
+        font-size: 15px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      
+      label::before {
+        content: '●';
+        color: #667eea;
+        font-size: 10px;
+      }
+      
+      input[type="text"],
+      input[type="date"] {
+        padding: 14px 18px;
+        border: 2px solid #e5e7eb;
+        border-radius: 10px;
+        font-size: 16px;
+        transition: all 0.3s ease;
+        font-family: inherit;
+        background: #fafafa;
+      }
+      
+      input[type="text"]:focus,
+      input[type="date"]:focus {
+        outline: none;
+        border-color: #667eea;
+        background: white;
+        box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+        transform: translateY(-2px);
+      }
+      
+      .file-upload-area {
+        padding: 32px;
+        border: 3px dashed #d1d5db;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        background: linear-gradient(135deg, #fafafa 0%, #f3f4f6 100%);
+        text-align: center;
+        position: relative;
+      }
+      
+      .file-upload-area:hover {
+        border-color: #667eea;
+        background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      }
+      
+      .file-upload-area.has-file {
+        border-color: #10b981;
+        background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+      }
+      
+      .file-upload-icon {
+        font-size: 48px;
+        margin-bottom: 12px;
+      }
+      
+      .file-upload-text {
+        color: #6b7280;
+        font-size: 15px;
+        font-weight: 600;
+      }
+      
+      .file-upload-text strong {
+        color: #667eea;
+      }
+      
+      input[type="file"] {
+        display: none;
+      }
+      
+      textarea {
+        padding: 14px 18px;
+        border: 2px solid #e5e7eb;
+        border-radius: 10px;
+        font-size: 16px;
+        font-family: inherit;
+        resize: vertical;
+        min-height: 120px;
+        transition: all 0.3s ease;
+        background: #fafafa;
+      }
+      
+      textarea:focus {
+        outline: none;
+        border-color: #667eea;
+        background: white;
+        box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+        transform: translateY(-2px);
+      }
+      
+      button[type="submit"] {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 18px 32px;
+        border: none;
+        border-radius: 12px;
+        font-size: 18px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        margin-top: 8px;
+      }
+      
+      button[type="submit"]:hover:not(:disabled) {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.5);
+      }
+      
+      button[type="submit"]:active {
+        transform: translateY(-1px);
+      }
+      
+      button[type="submit"]:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+      }
+      
+      .result {
+        margin-top: 32px;
+        padding: 20px 24px;
+        border-radius: 12px;
+        font-size: 15px;
+        line-height: 1.7;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        animation: fadeIn 0.4s ease;
+        font-weight: 500;
+      }
+      
+      .result.success {
+        background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+        border: 3px solid #6ee7b7;
+        color: #065f46;
+      }
+      
+      .result.error {
+        background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+        border: 3px solid #fca5a5;
+        color: #991b1b;
+      }
+      
+      .divider {
+        text-align: center;
+        position: relative;
+        margin: 28px 0;
+      }
+      
+      .divider::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 50%;
+        width: 100%;
+        height: 2px;
+        background: linear-gradient(90deg, transparent, #e5e7eb 20%, #e5e7eb 80%, transparent);
+      }
+      
+      .divider span {
+        background: white;
+        padding: 0 16px;
+        position: relative;
+        color: #9ca3af;
+        font-size: 14px;
+        font-weight: 800;
+        letter-spacing: 1px;
+      }
+      
+      .spinner {
+        display: inline-block;
+        width: 18px;
+        height: 18px;
+        border: 3px solid rgba(255,255,255,.3);
+        border-radius: 50%;
+        border-top-color: white;
+        animation: spin 0.7s linear infinite;
+        margin-right: 10px;
+        vertical-align: middle;
+      }
+      
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+      
+      .note {
+        margin-top: 40px;
+        padding: 20px 24px;
+        background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+        border-left: 5px solid #667eea;
+        border-radius: 8px;
+        color: #6b7280;
+        font-size: 14px;
+        line-height: 1.6;
+      }
+      
+      .note strong {
+        color: #374151;
+      }
+      
+      .file-preview {
+        margin-top: 16px;
+        padding: 16px 20px;
+        background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+        border-radius: 10px;
+        font-size: 14px;
+        color: #065f46;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-weight: 600;
+        animation: fadeIn 0.3s ease;
+      }
+      
+      .file-preview::before {
+        content: '✓';
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        background: #10b981;
+        color: white;
+        border-radius: 50%;
+        font-weight: bold;
+        font-size: 16px;
+      }
+      
+      .download-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+        padding: 14px 24px;
+        border-radius: 10px;
+        text-decoration: none;
+        font-weight: 700;
+        font-size: 16px;
+        margin-top: 20px;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+      }
+      
+      .download-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+      }
+      
+      .download-btn::before {
+        content: '⬇';
+        font-size: 20px;
+      }
+      
+      @media (max-width: 640px) {
+        .card {
+          padding: 28px;
+        }
+        
+        h1 {
+          font-size: 32px;
+        }
+        
+        .nav {
+          flex-direction: column;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="card">
+        <div class="header">
+          <h1>🏥 RxVerify</h1>
+          <p class="subtitle">Secure prescription creation and verification system</p>
+        </div>
+        <div id="root"></div>
+      </div>
+    </div>
+
+    <script type="text/babel">
+      const {useState} = React;
+
+      function CreateForm(){
+        const [doctorName, setDoctor] = useState('');
+        const [doctorId, setDocId] = useState('');
+        const [patientName, setPatient] = useState('');
+        const [date, setDate] = useState('');
+        const [meds, setMeds] = useState('');
+        const [result, setResult] = useState('');
+        const [resultType, setResultType] = useState('');
+        const [loading, setLoading] = useState(false);
+        const [downloadUrl, setDownloadUrl] = useState('');
+
+        async function submit(e){
+          e.preventDefault();
+          setLoading(true);
+          setResult('');
+          setResultType('');
+          setDownloadUrl('');
+          
+          const form = new FormData();
+          form.append('doctor_name', doctorName);
+          form.append('doctor_id', doctorId);
+          form.append('patient_name', patientName);
+          form.append('date', date);
+          form.append('medications', meds);
+
+          try {
+            const res = await fetch('/create', {method:'POST', body: form, credentials: 'same-origin'});
+            const text = await res.text();
+            
+            if (res.ok) {
+              // Extract code from response
+              const codeMatch = text.match(/Code:\s*([A-Z0-9]+)/i);
+              if (codeMatch) {
+                const code = codeMatch[1];
+                setResult(`✓ Prescription created successfully!\n\nCode: ${code}\n\nYour PDF is ready for download.`);
+                setDownloadUrl(`/download/${code}`);
+                setResultType('success');
+                // Clear form
+                setDoctor('');
+                setDocId('');
+                setPatient('');
+                setDate('');
+                setMeds('');
+              } else {
+                setResult(text);
+                setResultType('success');
+              }
+            } else {
+              setResult(text || 'An error occurred');
+              setResultType('error');
+            }
+          } catch(err) {
+            setResult('Network error: ' + err.message);
+            setResultType('error');
+          } finally {
+            setLoading(false);
+          }
+        }
+
+        return (
+          <div className="tab-content">
+            <h3>Create New Prescription</h3>
+            <form onSubmit={submit}>
+              <div className="form-group">
+                <label>Doctor Name</label>
+                <input 
+                  type="text"
+                  value={doctorName} 
+                  onChange={e=>setDoctor(e.target.value)}
+                  placeholder="Dr. Jane Smith"
+                  required
+                />
+              </div>
+              
+              <div className="form-group">
+                <label>Doctor ID</label>
+                <input 
+                  type="text"
+                  value={doctorId} 
+                  onChange={e=>setDocId(e.target.value)}
+                  placeholder="MD123456"
+                  required
+                />
+              </div>
+              
+              <div className="form-group">
+                <label>Patient Name</label>
+                <input 
+                  type="text"
+                  value={patientName} 
+                  onChange={e=>setPatient(e.target.value)}
+                  placeholder="John Doe"
+                  required
+                />
+              </div>
+              
+              <div className="form-group">
+                <label>Date</label>
+                <input 
+                  type="date"
+                  value={date} 
+                  onChange={e=>setDate(e.target.value)}
+                  required
+                />
+              </div>
+              
+              <div className="form-group">
+                <label>Medications</label>
+                <textarea 
+                  value={meds} 
+                  onChange={e=>setMeds(e.target.value)}
+                  placeholder="Amoxicillin:500mg, Ibuprofen:200mg&#10;(Use comma-separated format)"
+                  required
+                />
+              </div>
+              
+              <button type="submit" disabled={loading}>
+                {loading && <span className="spinner"></span>}
+                {loading ? 'Creating...' : 'Create Prescription'}
+              </button>
+            </form>
+            
+            {result && (
+              <div className={`result ${resultType}`}>
+                {result}
+                {downloadUrl && (
+                  <div>
+                    <a href={downloadUrl} className="download-btn" download>
+                      Download PDF with QR Code
+                    </a>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )
+      }
+
+      function VerifyForm(){
+        const [file, setFile] = useState(null);
+        const [code, setCode] = useState('');
+        const [result, setResult] = useState('');
+        const [resultType, setResultType] = useState('');
+        const [loading, setLoading] = useState(false);
+
+        function handleFileChange(e) {
+          const selectedFile = e.target.files[0];
+          if (selectedFile) {
+            // Validate file type
+            const validTypes = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg'];
+            if (!validTypes.includes(selectedFile.type)) {
+              alert('Please upload a PDF or image file (PNG, JPG)');
+              e.target.value = '';
+              return;
+            }
+            setFile(selectedFile);
+          }
+        }
+
+        async function submit(e){
+          e.preventDefault();
+          setLoading(true);
+          setResult('');
+          setResultType('');
+          
+          const form = new FormData();
+          if(file) form.append('prescription', file);
+          form.append('code', code);
+
+          try {
+            const res = await fetch('/verify', {method:'POST', body: form, credentials: 'same-origin'});
+            const text = await res.text();
+            
+            if (res.ok) {
+              setResult(text);
+              setResultType('success');
+            } else {
+              setResult(text || 'Verification failed');
+              setResultType('error');
+            }
+          } catch(err) {
+            setResult('Network error: ' + err.message);
+            setResultType('error');
+          } finally {
+            setLoading(false);
+          }
+        }
+
+        return (
+          <div className="tab-content">
+            <h3>Verify Prescription</h3>
+            <form onSubmit={submit} encType="multipart/form-data">
+              <div className="form-group">
+                <label>Upload Prescription PDF</label>
+                <label 
+                  htmlFor="fileInput" 
+                  className={`file-upload-area ${file ? 'has-file' : ''}`}
+                >
+                  <div className="file-upload-icon">
+                    {file ? '✓' : '📄'}
+                  </div>
+                  <div className="file-upload-text">
+                    {file ? (
+                      <>Selected: <strong>{file.name}</strong></>
+                    ) : (
+                      <>Click to <strong>browse</strong> or drag and drop</>
+                    )}
+                  </div>
+                  {file && (
+                    <div style={{marginTop: '8px', fontSize: '13px', color: '#065f46'}}>
+                      {(file.size / 1024).toFixed(1)} KB
+                    </div>
+                  )}
+                </label>
+                <input 
+                  type="file"
+                  id="fileInput"
+                  accept=".pdf,image/*"
+                  onChange={handleFileChange}
+                />
+              </div>
+              
+              <div className="divider">
+                <span>OR</span>
+              </div>
+              
+              <div className="form-group">
+                <label>Enter Verification Code</label>
+                <input 
+                  type="text"
+                  value={code} 
+                  onChange={e=>setCode(e.target.value)}
+                  placeholder="ABC123XYZ"
+                />
+              </div>
+              
+              <button type="submit" disabled={loading}>
+                {loading && <span className="spinner"></span>}
+                {loading ? 'Verifying...' : 'Verify Prescription'}
+              </button>
+            </form>
+            
+            {result && (
+              <div className={`result ${resultType}`}>
+                <div dangerouslySetInnerHTML={{__html: result}} />
+              </div>
+            )}
+          </div>
+        )
+      }
+
+      function App(){
+        const [tab, setTab] = useState('create');
+        
+        return (
+          <div>
+            <div className="nav">
+              <button 
+                onClick={()=>setTab('create')}
+                className={tab === 'create' ? 'active' : ''}
+              >
+                Create Prescription
+              </button>
+              <button 
+                onClick={()=>setTab('verify')}
+                className={tab === 'verify' ? 'active' : ''}
+              >
+                Verify Prescription
+              </button>
+            </div>
+            
+            {tab === 'create' ? <CreateForm/> : <VerifyForm/>}
+            
+            <div className="note">
+              <strong>Note:</strong> This system uses QR code verification for enhanced security. Created prescriptions will automatically download as PDF files with embedded QR codes.
+            </div>
+          </div>
+        )
+      }
+
+      ReactDOM.createRoot(document.getElementById('root')).render(<App />)
+    </script>
+  </body>
+</html>

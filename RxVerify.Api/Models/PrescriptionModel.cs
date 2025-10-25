@@ -10,6 +10,8 @@ public class PrescriptionModel
     public string Instructions { get; set; } = string.Empty;
     public string RawText { get; set; } = string.Empty;
     public string Hash { get; set; } = string.Empty;
+    // Mean OCR confidence reported by Tesseract (0..1)
+    public double? OcrConfidence { get; set; }
 }
 
 public class VerificationResult
