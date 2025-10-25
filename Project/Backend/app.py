@@ -12,6 +12,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import qrcode
 from PIL import Image
 from pyzbar.pyzbar import decode
+from hash_utils import generate_prescription_hash, verify_prescription_hash
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -30,16 +31,47 @@ DB_FILE = "prescriptions.db"
 def init_db():
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
+    
+    # Backup existing prescriptions if table exists
+    try:
+        c.execute("SELECT * FROM prescriptions")
+        existing_prescriptions = c.fetchall()
+    except sqlite3.OperationalError:
+        existing_prescriptions = []
+
+    # Drop existing table
+    c.execute("DROP TABLE IF EXISTS prescriptions")
+    
+    # Create new table with hash column
     c.execute('''
-        CREATE TABLE IF NOT EXISTS prescriptions (
+        CREATE TABLE prescriptions (
             code TEXT PRIMARY KEY,
             doctor_name TEXT,
             doctor_id TEXT,
             patient_name TEXT,
             date TEXT,
-            medications TEXT
+            medications TEXT,
+            hash TEXT
         )
     ''')
+    
+    # Restore existing data with hash generation
+    for prescription in existing_prescriptions:
+        prescription_data = {
+            'code': prescription[0],
+            'doctor_name': prescription[1],
+            'doctor_id': prescription[2],
+            'patient_name': prescription[3],
+            'date': prescription[4],
+            'medications': prescription[5].split(',')
+        }
+        prescription_hash = generate_prescription_hash(prescription_data)
+        c.execute('''
+            INSERT INTO prescriptions (code, doctor_name, doctor_id, patient_name, date, medications, hash)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (prescription[0], prescription[1], prescription[2], prescription[3], prescription[4], prescription[5], prescription_hash))
+    
+    # Create users table
     c.execute('''
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -51,6 +83,7 @@ def init_db():
             organization TEXT
         )
     ''')
+    
     conn.commit()
     conn.close()
 
@@ -58,13 +91,26 @@ def generate_code(length=8):
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=length))
 
 def add_prescription(code, doctor_name, doctor_id, patient_name, date, medications):
+    # Create prescription data for hashing
+    prescription_data = {
+        'code': code,
+        'doctor_name': doctor_name,
+        'doctor_id': doctor_id,
+        'patient_name': patient_name,
+        'date': date,
+        'medications': medications
+    }
+    
+    # Generate hash
+    prescription_hash = generate_prescription_hash(prescription_data)
+    
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
     meds_str = ','.join(medications)
     c.execute('''
-        INSERT INTO prescriptions (code, doctor_name, doctor_id, patient_name, date, medications)
-        VALUES (?, ?, ?, ?, ?, ?)
-    ''', (code, doctor_name, doctor_id, patient_name, date, meds_str))
+        INSERT INTO prescriptions (code, doctor_name, doctor_id, patient_name, date, medications, hash)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    ''', (code, doctor_name, doctor_id, patient_name, date, meds_str, prescription_hash))
     conn.commit()
     conn.close()
 
@@ -73,8 +119,182 @@ def get_prescription(code):
     c = conn.cursor()
     c.execute("SELECT * FROM prescriptions WHERE code=?", (code,))
     result = c.fetchone()
+    
+    if result:
+        # Create prescription data for verification
+        prescription_data = {
+            'code': result[0],
+            'doctor_name': result[1],
+            'doctor_id': result[2],
+            'patient_name': result[3],
+            'date': result[4],
+            'medications': result[5].split(',')
+        }
+        
+        # Verify hash
+        stored_hash = result[6]  # Hash is the 7th column
+        is_verified = verify_prescription_hash(stored_hash, prescription_data)
+        
+        # Add verification status to result
+        result = result + (is_verified,)
+    
     conn.close()
     return result
+
+
+def find_prescription_by_hash(prescription_hash):
+    """Find a prescription row by stored hash."""
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute("SELECT * FROM prescriptions WHERE hash=?", (prescription_hash,))
+    row = c.fetchone()
+    conn.close()
+    return row
+
+
+def parse_prescription_text(text):
+    """Heuristic parser to extract prescription fields from OCR'd text.
+
+    Returns a dict with keys: code, doctor_name, doctor_id, patient_name, date, medications (list)
+    Fields may be None if not found.
+    """
+    if not text:
+        return None
+
+    lines = [l.strip() for l in text.splitlines() if l.strip()]
+    data = {
+        'code': None,
+        'doctor_name': None,
+        'doctor_id': None,
+        'patient_name': None,
+        'date': None,
+        'medications': []
+    }
+
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        low = line.lower()
+        if 'prescription code' in low or (low.startswith('code') and ':' in line):
+            parts = line.split(':', 1)
+            data['code'] = parts[1].strip() if len(parts) > 1 else None
+        elif line.lower().startswith('doctor name') or 'doctor:' in low:
+            parts = line.split(':', 1)
+            data['doctor_name'] = parts[1].strip() if len(parts) > 1 else None
+        elif 'doctor id' in low or 'licence' in low or 'license' in low:
+            parts = line.split(':', 1)
+            data['doctor_id'] = parts[1].strip() if len(parts) > 1 else None
+        elif line.lower().startswith('patient name') or line.lower().startswith('patient:'):
+            parts = line.split(':', 1)
+            data['patient_name'] = parts[1].strip() if len(parts) > 1 else None
+        elif line.lower().startswith('date'):
+            parts = line.split(':', 1)
+            data['date'] = parts[1].strip() if len(parts) > 1 else None
+        elif 'medications' in low or 'medicines' in low or 'drugs' in low:
+            # collect following lines or parse comma-separated list on same line
+            parts = line.split(':', 1)
+            meds_text = parts[1].strip() if len(parts) > 1 else ''
+            if meds_text:
+                meds = [m.strip() for m in meds_text.split(',') if m.strip()]
+                data['medications'].extend(meds)
+            else:
+                # grab subsequent lines until blank or next label
+                j = i + 1
+                while j < len(lines):
+                    nxt = lines[j]
+                    if any(k in nxt.lower() for k in ['doctor', 'patient', 'date', 'prescription', 'code']):
+                        break
+                    data['medications'].append(nxt)
+                    j += 1
+                i = j - 1
+        i += 1
+
+    # Final normalization: split any medications that contain commas
+    meds_final = []
+    for m in data['medications']:
+        meds_final.extend([x.strip() for x in m.split(',') if x.strip()])
+    data['medications'] = meds_final
+
+    return data
+
+
+def _normalize_text_field(s):
+    """Normalize a text field for strict comparison: trim, collapse spaces, lowercase."""
+    if s is None:
+        return None
+    return ' '.join(s.split()).strip().lower()
+
+
+def _normalize_med_list(meds):
+    if not meds:
+        return []
+    return [ _normalize_text_field(m) for m in meds ]
+
+
+def _prescription_matches_row(parsed, row):
+    """Compare parsed prescription dict to a DB row strictly after normalization.
+
+    row is a tuple: (code, doctor_name, doctor_id, patient_name, date, medications, hash)
+    Returns True only if all fields match exactly (after normalization) and medication lists match in order.
+    """
+    if not parsed or not row:
+        return False
+
+    # Build db dict
+    db = {
+        'code': row[0],
+        'doctor_name': row[1],
+        'doctor_id': row[2],
+        'patient_name': row[3],
+        'date': row[4],
+        'medications': row[5].split(',') if row[5] else []
+    }
+
+    # Normalize and compare (strict)
+    for key in ['code', 'doctor_name', 'doctor_id', 'patient_name', 'date']:
+        pv = parsed.get(key)
+        dv = db.get(key)
+        if _normalize_text_field(pv) != _normalize_text_field(dv):
+            break
+    else:
+        # medications: compare normalized lists and order
+        parsed_meds = _normalize_med_list(parsed.get('medications', []))
+        db_meds = _normalize_med_list(db.get('medications', []))
+        if parsed_meds == db_meds:
+            return True
+
+    # Strict check failed — try a relaxed fuzzy comparison to tolerate small OCR differences
+    from difflib import SequenceMatcher
+
+    def similar(a, b):
+        if a is None and b is None:
+            return 1.0
+        if a is None or b is None:
+            return 0.0
+        return SequenceMatcher(None, _normalize_text_field(a), _normalize_text_field(b)).ratio()
+
+    thresh = 0.95  # high threshold: only tiny OCR deviations allowed
+    fields = ['code', 'doctor_name', 'doctor_id', 'patient_name', 'date']
+    for key in fields:
+        score = similar(parsed.get(key), db.get(key))
+        if score < thresh:
+            # debug print to help troubleshoot mismatches
+            print(f"[verify] field mismatch '{key}': parsed='{parsed.get(key)}' db='{db.get(key)}' score={score}")
+            return False
+
+    # compare medication lists: require same length and each item similar
+    parsed_meds = _normalize_med_list(parsed.get('medications', []))
+    db_meds = _normalize_med_list(db.get('medications', []))
+    if len(parsed_meds) != len(db_meds):
+        print(f"[verify] meds length mismatch: parsed={parsed_meds} db={db_meds}")
+        return False
+    for i, (pm, dm) in enumerate(zip(parsed_meds, db_meds)):
+        score = SequenceMatcher(None, pm, dm).ratio()
+        if score < thresh:
+            print(f"[verify] med mismatch index {i}: parsed='{pm}' db='{dm}' score={score}")
+            return False
+
+    return True
 
 def login_required(f):
     @wraps(f)
@@ -187,6 +407,8 @@ def create():
 def verify():
     if request.method == 'POST':
         code = None
+        extracted_text = None
+        parsed_from_file = None
         # Check if file uploaded
         file = request.files.get('prescription')
         if file and file.filename != '':
@@ -197,27 +419,20 @@ def verify():
                 file_bytes = file.read()
 
                 # 1) Try to extract text from PDF using PyPDF2 (if installed)
-                extracted_text = ''
                 try:
                     from PyPDF2 import PdfReader
                     reader = PdfReader(BytesIO(file_bytes))
+                    extracted_text = ''
                     for page in reader.pages:
                         try:
                             extracted_text += (page.extract_text() or '') + "\n"
                         except Exception:
-                            # continue if a page fails
                             continue
                 except Exception:
-                    extracted_text = ''
-
-                if extracted_text:
-                    for line in extracted_text.splitlines():
-                        if "Prescription Code" in line or "Code" in line:
-                            code = line.split(":")[-1].strip()
-                            break
+                    extracted_text = None
 
                 # 2) If no code yet, try to decode QR from first PDF page using pdf2image (if available)
-                if not code:
+                if not code and not extracted_text:
                     try:
                         from pdf2image import convert_from_bytes
                         images = convert_from_bytes(file_bytes)
@@ -226,11 +441,10 @@ def verify():
                             if qr_data:
                                 code = qr_data[0].data.decode('utf-8')
                     except Exception:
-                        # pdf2image not available or conversion failed, continue
                         pass
 
-                # 3) Fallback to OCR.Space for PDF if still no code
-                if not code:
+                # 3) Fallback to OCR.Space for PDF if we don't have extracted_text or code
+                if not extracted_text:
                     try:
                         response = requests.post(
                             "https://api.ocr.space/parse/image",
@@ -240,13 +454,12 @@ def verify():
                         result = response.json()
                         parsed_results = result.get("ParsedResults")
                         if parsed_results:
-                            text = parsed_results[0].get("ParsedText", "")
-                            for line in text.split("\n"):
+                            extracted_text = parsed_results[0].get("ParsedText", "")
+                            for line in extracted_text.split("\n"):
                                 if "Prescription Code" in line or "Code" in line:
                                     code = line.split(":")[-1].strip()
                                     break
                     except Exception:
-                        # network/OCR failure - leave code as None
                         pass
             else:
                 # treat as image
@@ -268,13 +481,12 @@ def verify():
                         result = response.json()
                         parsed_results = result.get("ParsedResults")
                         if parsed_results:
-                            text = parsed_results[0].get("ParsedText", "")
-                            for line in text.split("\n"):
+                            extracted_text = parsed_results[0].get("ParsedText", "")
+                            for line in extracted_text.split("\n"):
                                 if "Prescription Code" in line or "Code" in line:
                                     code = line.split(":")[-1].strip()
                                     break
                 except Exception:
-                    # Image open/QR decode failed; try OCR as last resort
                     try:
                         file.seek(0)
                         file_bytes = file.read()
@@ -286,8 +498,8 @@ def verify():
                         result = response.json()
                         parsed_results = result.get("ParsedResults")
                         if parsed_results:
-                            text = parsed_results[0].get("ParsedText", "")
-                            for line in text.split("\n"):
+                            extracted_text = parsed_results[0].get("ParsedText", "")
+                            for line in extracted_text.split("\n"):
                                 if "Prescription Code" in line or "Code" in line:
                                     code = line.split(":")[-1].strip()
                                     break
@@ -298,16 +510,56 @@ def verify():
         if not code:
             code = request.form.get('code', '').strip()
 
-        if not code:
-            return "Cannot detect prescription code. Please upload an image or enter a code."
+        # If we have a code: verify by code and, if possible, compare with uploaded file content
+        if code:
+            db_entry = get_prescription(code)
+            if not db_entry:
+                return f"Prescription code {code} NOT found in database."
 
-        db_entry = get_prescription(code)
-        if not db_entry:
-            return f"Prescription code {code} NOT found in database."
+            # If we also extracted text from an uploaded file, attempt to parse it and compare hashes
+            if extracted_text:
+                parsed_from_file = parse_prescription_text(extracted_text)
+                if parsed_from_file:
+                    file_hash = generate_prescription_hash(parsed_from_file)
+                    stored_hash = db_entry[6] if len(db_entry) > 6 else None
+                    if stored_hash and file_hash != stored_hash:
+                        # Uploaded file does not match the stored prescription with this code
+                        doctor_name = parsed_from_file.get('doctor_name') or ''
+                        doctor_id = parsed_from_file.get('doctor_id') or ''
+                        patient_name = parsed_from_file.get('patient_name') or ''
+                        date = parsed_from_file.get('date') or ''
+                        medications = parsed_from_file.get('medications') or []
+                        return render_template('verify_result.html', code=code, doctor_name=doctor_name, doctor_id=doctor_id, patient_name=patient_name, date=date, medications=medications, is_verified=False, prescription_hash=file_hash)
 
-        # Extract fields and render result (inside POST branch so db_entry always defined)
-        doctor_name, doctor_id, patient_name, date, medications = db_entry[1], db_entry[2], db_entry[3], db_entry[4], db_entry[5].split(',')
-        return render_template('verify_result.html', code=code, doctor_name=doctor_name, doctor_id=doctor_id, patient_name=patient_name, date=date, medications=medications)
+            # No mismatch found (or no uploaded file to compare) -> render DB entry as verified
+            doctor_name, doctor_id, patient_name, date, medications = db_entry[1], db_entry[2], db_entry[3], db_entry[4], db_entry[5].split(',')
+            prescription_hash = db_entry[6] if len(db_entry) > 6 else None
+            is_verified = True
+            return render_template('verify_result.html', code=code, doctor_name=doctor_name, doctor_id=doctor_id, patient_name=patient_name, date=date, medications=medications, is_verified=is_verified, prescription_hash=prescription_hash)
+
+        # If no code but we have extracted text from a file: try to parse and find by hash
+        if extracted_text:
+            parsed_from_file = parse_prescription_text(extracted_text)
+            if parsed_from_file:
+                file_hash = generate_prescription_hash(parsed_from_file)
+                row = find_prescription_by_hash(file_hash)
+                if row:
+                    # Found a matching stored prescription: render it as verified
+                    doctor_name, doctor_id, patient_name, date, medications = row[1], row[2], row[3], row[4], row[5].split(',')
+                    prescription_hash = row[6] if len(row) > 6 else None
+                    is_verified = True
+                    return render_template('verify_result.html', code=row[0], doctor_name=doctor_name, doctor_id=doctor_id, patient_name=patient_name, date=date, medications=medications, is_verified=is_verified, prescription_hash=prescription_hash)
+                else:
+                    # Not in DB: show rejected result with parsed fields and file hash
+                    doctor_name = parsed_from_file.get('doctor_name') or ''
+                    doctor_id = parsed_from_file.get('doctor_id') or ''
+                    patient_name = parsed_from_file.get('patient_name') or ''
+                    date = parsed_from_file.get('date') or ''
+                    medications = parsed_from_file.get('medications') or []
+                    return render_template('verify_result.html', code='', doctor_name=doctor_name, doctor_id=doctor_id, patient_name=patient_name, date=date, medications=medications, is_verified=False, prescription_hash=file_hash)
+
+        # No code and no parseable text -> cannot verify
+        return "Cannot detect prescription code or extract prescription data from the uploaded file."
 
     # GET -> show verify form
     return render_template('verify.html')

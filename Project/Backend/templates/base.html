@@ -6,6 +6,9 @@
     <title>{{ title if title else 'MedVerify' }}</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/verify.css') }}">
+    <!-- Flatpickr datepicker -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <meta name="theme-color" content="#1E90FF">
 </head>
 <body class="theme-white">
@@ -16,18 +19,16 @@
                 <span class="mv-tag">Secure Digital Prescriptions</span>
             </div>
 
-            <nav class="mv-nav">
-                <a href="{{ url_for('home') }}">Home</a>
-                <a href="{{ url_for('create') }}">Create Prescription</a>
-                <a href="{{ url_for('verify') }}">Verify Prescription</a>
-                {% if username %}
-                    <span class="mv-user">{{ username }} <small class="mv-role">({{ role }})</small></span>
-                    <a class="mv-logout" href="{{ url_for('logout') }}">Logout</a>
-                {% else %}
-                    <a href="{{ url_for('signup') }}">Sign Up</a>
-                    <a href="{{ url_for('login') }}">Login</a>
-                {% endif %}
-            </nav>
+                    <nav class="mv-nav">
+                        <a href="{{ url_for('home') }}">Home</a>
+                        {% if username %}
+                            <span class="mv-user">{{ username }} <small class="mv-role">({{ role }})</small></span>
+                            <a class="mv-logout" href="{{ url_for('logout') }}">Logout</a>
+                        {% else %}
+                            <a href="{{ url_for('signup') }}">Sign Up</a>
+                            <a href="{{ url_for('login') }}">Login</a>
+                        {% endif %}
+                    </nav>
         </div>
     </header>
 
@@ -39,7 +40,26 @@
         <div class="mv-container">
             <small>© {{ 2025 }} MedVerify — Built for trust and clarity</small>
         </div>
-    </footer>
+        </footer>
+
+    <!-- Flatpickr JS and init -->
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function(){
+            try{
+                if(window.flatpickr){
+                    flatpickr('input[name="date"]', {
+                        dateFormat: 'Y-m-d',
+                        allowInput: true,
+                        altInput: true,
+                        altFormat: 'F j, Y'
+                    });
+                }
+            }catch(e){
+                console.warn('Flatpickr init failed', e);
+            }
+        });
+    </script>
 
 </body>
 </html>

@@ -1,41 +1,44 @@
 {% extends 'base.html' %}
 {% block content %}
-  <section class="mv-hero">
-    <div class="mv-hero-inner">
-      <h1>MedVerify</h1>
-      <p class="subtitle">Secure digital prescriptions — issued and verified with confidence.</p>
-      <div class="hero-actions">
-        <a class="btn-primary" href="{{ url_for('create') }}">Create Prescription</a>
-        <a class="btn-ghost" href="{{ url_for('verify') }}">Verify Prescription</a>
+
+  <style>
+    /* Inline styles specific to home - quick prototype */
+    .home-portal-wrap{display:flex;align-items:center;justify-content:center;min-height:60vh;padding:60px 0}
+    .home-portal{display:flex;gap:28px;align-items:stretch;justify-content:center;max-width:920px;width:100%}
+    .portal-card{flex:1;padding:28px;border-radius:14px;box-shadow:0 12px 30px rgba(11,37,64,0.08);display:flex;flex-direction:column;align-items:center;justify-content:space-between;min-height:300px}
+    .portal-card h3{margin:0 0 8px 0;font-size:1.25rem;color:#073b7a}
+    .portal-card p{color:#29415b;text-align:center;line-height:1.4}
+    .issuer-card{background:linear-gradient(180deg,rgba(30,144,255,0.06),#ffffff);border:1px solid rgba(30,144,255,0.08)}
+    .verifier-card{background:#ffffff;border:2px solid rgba(14,76,167,0.10)}
+    .portal-btn{display:inline-block;margin-top:18px;padding:12px 20px;border-radius:10px;text-decoration:none;font-weight:700;color:#fff;background:linear-gradient(90deg,#1E90FF,#0A58CA);box-shadow:0 8px 20px rgba(14,76,167,0.12)}
+    .portal-btn:hover{filter:brightness(1.03);box-shadow:0 12px 30px rgba(14,76,167,0.16)}
+    .verifier-card .portal-btn{background:linear-gradient(90deg,#1E90FF,#0A58CA)}
+    .issuer-meta{font-size:0.95rem;color:#173a63;margin-top:8px}
+
+    @media(max-width:820px){
+      .home-portal{flex-direction:column;padding:0 12px}
+      .portal-card{min-height:220px}
+    }
+  </style>
+
+  <div class="home-portal-wrap">
+    <div class="home-portal">
+      <div class="portal-card issuer-card">
+        <div>
+          <h3>Issuer</h3>
+          <p class="issuer-meta">Doctors and Pharmacists can securely issue and sign digital prescriptions that include unique verification codes and QR tags.</p>
+        </div>
+        <a class="portal-btn" href="{{ url_for('create') }}">Create Prescription</a>
+      </div>
+
+      <div class="portal-card verifier-card">
+        <div>
+          <h3>Verifier</h3>
+          <p>Authorized authorities such as police or medical regulators can verify the authenticity of prescriptions by uploading an image or entering a code.</p>
+        </div>
+        <a class="portal-btn" href="{{ url_for('verify') }}">Verify Prescription</a>
       </div>
     </div>
-  </section>
-
-  <section class="mv-dashboard">
-    <div class="mv-grid">
-      <div class="mv-card">
-        <h3>Quick Actions</h3>
-        <ul class="mv-list">
-          <li><a href="{{ url_for('create') }}">Create New Prescription</a></li>
-          <li><a href="{{ url_for('verify') }}">Verify a Prescription</a></li>
-        </ul>
-      </div>
-
-      <div class="mv-card">
-        <h3>Account</h3>
-        {% if username %}
-          <p>Signed in as <strong>{{ username }}</strong></p>
-          <p class="muted">Role: {{ role }}</p>
-        {% else %}
-          <p>Please <a href="{{ url_for('login') }}">login</a> or <a href="{{ url_for('signup') }}">sign up</a>.</p>
-        {% endif %}
-      </div>
-
-      <div class="mv-card">
-        <h3>About</h3>
-        <p class="muted">MedVerify helps issuers generate official prescription PDFs with embedded QR codes and allows verifiers to confirm authenticity quickly.</p>
-      </div>
-    </div>
-  </section>
+  </div>
 
 {% endblock %}

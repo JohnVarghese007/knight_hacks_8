@@ -9,8 +9,20 @@
         <label>Doctor ID<input type="text" name="doctor_id" required></label>
         <label>Patient Name<input type="text" name="patient_name" required></label>
         <label>Date<input type="text" name="date" required placeholder="YYYY-MM-DD"></label>
-        <label class="full">Medications (name:quantity, comma-separated)
-          <input type="text" name="medications" required placeholder="e.g. Amoxicillin:500mg x2, Paracetamol:500mg x3">
+        <label class="full">Medications
+          <div id="med-list" style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
+            <div class="med-row" style="display:flex;gap:8px;align-items:center">
+              <input class="med-input med-name" placeholder="Medication name" style="flex:2;padding:8px;border-radius:6px;border:1px solid #e6eefb">
+              <input class="med-input med-size" placeholder="Size (e.g. 500mg)" style="flex:1;padding:8px;border-radius:6px;border:1px solid #e6eefb">
+              <input class="med-input med-qty" placeholder="Qty" style="width:84px;padding:8px;border-radius:6px;border:1px solid #e6eefb">
+              <button type="button" class="btn-ghost med-remove" style="padding:8px 10px">Remove</button>
+            </div>
+          </div>
+          <div style="margin-top:10px">
+            <button type="button" id="add-med" class="btn-ghost">Add medication</button>
+          </div>
+          <!-- Hidden field expected by backend: comma-separated list -->
+          <input type="hidden" name="medications" id="medications-hidden" required>
         </label>
       </div>
       <div class="form-actions">
@@ -18,5 +30,81 @@
         <a class="btn-ghost" href="{{ url_for('home') }}">Cancel</a>
       </div>
     </form>
+
+    <script>
+      (function(){
+        const medList = document.getElementById('med-list');
+        const addBtn = document.getElementById('add-med');
+        const hidden = document.getElementById('medications-hidden');
+        const form = document.querySelector('.mv-page-card form') || document.querySelector('form');
+
+        function createRow(){
+          const row = document.createElement('div');
+          row.className = 'med-row';
+          row.style.display = 'flex'; row.style.gap = '8px'; row.style.alignItems = 'center';
+
+          const name = document.createElement('input');
+          name.className = 'med-input med-name';
+          name.placeholder = 'Medication name';
+          name.style.flex = '2'; name.style.padding='8px'; name.style.borderRadius='6px'; name.style.border='1px solid #e6eefb';
+
+          const size = document.createElement('input');
+          size.className = 'med-input med-size';
+          size.placeholder = 'Size (e.g. 500mg)';
+          size.style.flex='1'; size.style.padding='8px'; size.style.borderRadius='6px'; size.style.border='1px solid #e6eefb';
+
+          const qty = document.createElement('input');
+          qty.className = 'med-input med-qty';
+          qty.placeholder = 'Qty';
+          qty.style.width='84px'; qty.style.padding='8px'; qty.style.borderRadius='6px'; qty.style.border='1px solid #e6eefb';
+
+          const remove = document.createElement('button');
+          remove.type = 'button'; remove.className = 'btn-ghost med-remove'; remove.textContent = 'Remove';
+          remove.style.padding='8px 10px';
+          remove.addEventListener('click', ()=>{ if(row.parentNode) row.parentNode.removeChild(row); });
+
+          row.appendChild(name); row.appendChild(size); row.appendChild(qty); row.appendChild(remove);
+          return row;
+        }
+
+        // Attach remove handler to existing remove buttons
+        medList.querySelectorAll('.med-remove').forEach(btn=>{
+          btn.addEventListener('click', function(e){
+            const row = e.target.closest('.med-row'); if(row && row.parentNode) row.parentNode.removeChild(row);
+          });
+        });
+
+        addBtn.addEventListener('click', function(){ medList.appendChild(createRow()); });
+
+        function buildMedString(){
+          const rows = medList.querySelectorAll('.med-row');
+          const parts = [];
+          rows.forEach(r=>{
+            const name = (r.querySelector('.med-name')||{}).value || '';
+            const size = (r.querySelector('.med-size')||{}).value || '';
+            const qty = (r.querySelector('.med-qty')||{}).value || '';
+            if(name.trim()){
+              let item = name.trim();
+              if(size.trim()) item += ':' + size.trim();
+              if(qty.trim()) item += ' x' + qty.trim();
+              parts.push(item);
+            }
+          });
+          return parts.join(',');
+        }
+
+        if(form){
+          form.addEventListener('submit', function(e){
+            const val = buildMedString();
+            if(!val){
+              e.preventDefault();
+              alert('Please add at least one medication with a name.');
+              return false;
+            }
+            hidden.value = val;
+          });
+        }
+      })();
+    </script>
   </div>
 {% endblock %}

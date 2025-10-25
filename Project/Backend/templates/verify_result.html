@@ -21,8 +21,20 @@
         </ul>
       </div>
       <div class="result-right">
-        <div class="status-badge success">Valid Prescription</div>
+        <div class="status-badge {{ 'success' if is_verified else 'warning' }}">
+          {{ 'Valid & Verified Prescription' if is_verified else 'Invalid or Tampered Prescription' }}
+        </div>
         <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data={{ code }}" alt="QR code">
+        <div class="verification-info">
+          <div class="small muted">Verification Status</div>
+          <div class="result-sub {{ 'text-success' if is_verified else 'text-warning' }}">
+            {{ 'Hash Verification Passed' if is_verified else 'Hash Verification Failed' }}
+          </div>
+          {% if prescription_hash %}
+          <div class="small muted" style="margin-top:8px">Prescription Key</div>
+          <div class="result-sub"><code style="font-family:monospace;">{{ prescription_hash }}</code></div>
+          {% endif %}
+        </div>
         <div style="margin-top:10px">
           <a class="btn-primary" href="{{ url_for('download_prescription', code=code) }}">Download PDF</a>
           <a class="btn-ghost" href="{{ url_for('verify') }}">Verify Another</a>
