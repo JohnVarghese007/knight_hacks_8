@@ -91,7 +91,7 @@ def init_db():
 def generate_code(length=8):
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=length))
 
-def get_previous_code():
+def get_previous_hash():
     with sqlite3.connect(DB_FILE) as conn:
         c = conn.cursor()
         
@@ -121,14 +121,15 @@ def add_prescription(code, previous_code, doctor_name, doctor_id, patient_name, 
     
     # Generate hash
     prescription_hash = generate_prescription_hash(prescription_data)
+    previous_hash = get_previous_hash()
     
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
     meds_str = ','.join(medications)
     c.execute('''
-        INSERT INTO prescriptions (code, doctor_name, doctor_id, patient_name, date, medications, hash)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-    ''', (code, doctor_name, doctor_id, patient_name, date, meds_str, prescription_hash))
+        INSERT INTO prescriptions (code, doctor_name, doctor_id, patient_name, date, medications, hash, previous_hash)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (code, doctor_name, doctor_id, patient_name, date, meds_str, prescription_hash, previous_hash))
     conn.commit()
     conn.close()
 
@@ -531,6 +532,7 @@ def verify():
 
         # If we have a code: verify by code and, if possible, compare with uploaded file content
         if code:
+            print("code")
             db_entry = get_prescription(code)
             if not db_entry:
                 return f"Prescription code {code} NOT found in database."
@@ -539,8 +541,12 @@ def verify():
             if extracted_text:
                 parsed_from_file = parse_prescription_text(extracted_text)
                 if parsed_from_file:
+                    print(parsed_from_file)
                     file_hash = generate_prescription_hash(parsed_from_file)
+                    print(file_hash)
+                    print(db_entry)
                     stored_hash = db_entry[6] if len(db_entry) > 6 else None
+                    print(stored_hash)
                     if stored_hash and file_hash != stored_hash:
                         # Uploaded file does not match the stored prescription with this code
                         doctor_name = parsed_from_file.get('doctor_name') or ''
@@ -558,8 +564,10 @@ def verify():
 
         # If no code but we have extracted text from a file: try to parse and find by hash
         if extracted_text:
+            print("extracted text")
             parsed_from_file = parse_prescription_text(extracted_text)
             if parsed_from_file:
+                print(parsed_from_file)
                 file_hash = generate_prescription_hash(parsed_from_file)
                 row = find_prescription_by_hash(file_hash)
                 if row:
