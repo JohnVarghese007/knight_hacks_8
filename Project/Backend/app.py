@@ -19,9 +19,10 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 OCR_API_KEY = os.getenv('OCR_API_KEY')
+SECRET_KEY = os.getenv('SECRET_KEY', 'fallback-key-for-dev')
 
 app = Flask(__name__)
-app.secret_key = "supersecretkey123"  # Change in production
+app.secret_key = SECRET_KEY
 DB_FILE = "prescriptions.db"
 
 # -------------------
@@ -41,9 +42,7 @@ def init_db():
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
 
-    c.execute('''
-        DROP TABLE IF EXISTS prescriptions;
-    ''')
+    c.execute('''DROP TABLE IF EXISTS prescriptions;''')
     
     # Create new table with hash column
     c.execute('''
@@ -254,7 +253,7 @@ def create():
     return render_template('create.html')
 
 # -------------------
-# VERIFY ROUTE
+# VERIFY ROUTE (FIXED)
 # -------------------
 @app.route('/verify', methods=['GET','POST'])
 @login_required
@@ -264,6 +263,7 @@ def verify():
         code = request.form.get('code', '').strip()
         file = request.files.get('prescription')
         parsed_from_file = None
+        qr_found = False
 
         # Parse uploaded file if exists
         if file and file.filename != '':
@@ -281,40 +281,38 @@ def verify():
                     img = Image.open(file)
                     qr_data = decode(img)
                     if qr_data:
+                        qr_found = True
+                        # set code from QR if present, but do NOT bail out if DB lookup fails
                         code = qr_data[0].data.decode('utf-8')
                     file.seek(0)
                     file_bytes = file.read()
-                    response = requests.post(
-                        "https://api.ocr.space/parse/image",
-                        files={"filename": ("image.png", file_bytes)},
-                        data={"apikey": OCR_API_KEY, "language": "eng"}
-                    )
-                    result = response.json()
-                    parsed_results = result.get("ParsedResults")
-                    if parsed_results:
-                        extracted_text = parsed_results[0].get("ParsedText", "")
-                        parsed_from_file = parse_prescription_text(extracted_text)
+                    # call OCR only if we didn't already get enough fields or to cross-check
+                    try:
+                        response = requests.post(
+                            "https://api.ocr.space/parse/image",
+                            files={"filename": ("image.png", file_bytes)},
+                            data={"apikey": OCR_API_KEY, "language": "eng"}
+                        )
+                        result = response.json()
+                        parsed_results = result.get("ParsedResults")
+                        if parsed_results:
+                            extracted_text = parsed_results[0].get("ParsedText", "")
+                            parsed_from_file = parse_prescription_text(extracted_text)
+                    except Exception as e:
+                        print("OCR request failed:", e)
             except Exception as e:
                 print("File parse error:", e)
 
-        # Try database verification
+        # Try database verification - improved logic:
         db_entry = None
+        # If we have a code (from form or QR), try lookup first
         if code:
-            print("code")
             db_entry = get_prescription(code)
-            if not db_entry:
-                return f"Prescription code {code} NOT found in database."
-              
-            # Show DB entry
-            doctor_name, doctor_id, patient_name, date, medications = db_entry[1], db_entry[2], db_entry[3], db_entry[4], db_entry[5].split(',')
-            stored_hash = db_entry[6]
-            is_verified = True
-            return render_template('verify_result.html', code=code, doctor_name=doctor_name, doctor_id=doctor_id,
-                                   patient_name=patient_name, date=date, medications=medications, is_verified=is_verified)
-
-        # If no code but parsed from file
-        elif parsed_from_file:
-            # Match using other fields if code missing
+            # if code present but not found in DB, DON'T immediately return;
+            # we'll attempt matching using parsed_from_file fields below
+        # If not found by code lookup, but we have parsed text, try match by fields
+        if not db_entry and parsed_from_file:
+            # Use exact match on doctor_name + patient_name + date (simple approach)
             conn = sqlite3.connect(DB_FILE)
             c = conn.cursor()
             query = "SELECT * FROM prescriptions WHERE doctor_name=? AND patient_name=? AND date=?"
@@ -326,6 +324,12 @@ def verify():
             db_entry = c.fetchone()
             conn.close()
 
+        # If still not found, but code exists (maybe OCR had code text different) try fallback:
+        # If parsed_from_file has a code text, try that too
+        if not db_entry and parsed_from_file and parsed_from_file.get('code'):
+            db_entry = get_prescription(parsed_from_file.get('code'))
+
+        # If we have a DB entry now, determine whether to mark verified:
         if db_entry:
             db_data = {
                 'code': db_entry[0],
@@ -335,7 +339,31 @@ def verify():
                 'date': db_entry[4],
                 'medications': db_entry[5].split(',')
             }
-            is_verified = True
+
+            # If QR was found and matches DB code -> strong verify
+            if qr_found and code and code == db_data['code']:
+                is_verified = True
+            else:
+                # Otherwise compare parsed fields (if any) against db fields
+                matches = 0
+                if parsed_from_file:
+                    if parsed_from_file.get('code') and parsed_from_file.get('code') == db_data['code']:
+                        matches += 1
+                    if parsed_from_file.get('doctor_name') and parsed_from_file.get('doctor_name') == db_data['doctor_name']:
+                        matches += 1
+                    if parsed_from_file.get('patient_name') and parsed_from_file.get('patient_name') == db_data['patient_name']:
+                        matches += 1
+                    if parsed_from_file.get('date') and parsed_from_file.get('date') == db_data['date']:
+                        matches += 1
+                # Also count if the manually-entered form code matched DB
+                if code and code == db_data['code']:
+                    # if this matched earlier, matches++ (but don't double-count if parsed_from_file had same code)
+                    if not (parsed_from_file and parsed_from_file.get('code') == code):
+                        matches += 1
+
+                # Decide threshold: code match OR at least 2 other fields matching
+                is_verified = (code and code == db_data['code']) or (matches >= 2)
+
             return render_template('verify_result.html',
                 code=db_data['code'],
                 doctor_name=db_data['doctor_name'],
@@ -346,7 +374,7 @@ def verify():
                 is_verified=is_verified
             )
 
-        # No match found, show parsed fields if any
+        # No match found: show parsed fields if any (to allow manual review)
         if parsed_from_file:
             return render_template('verify_result.html',
                 code=parsed_from_file.get('code',''),
