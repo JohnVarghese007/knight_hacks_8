@@ -4,6 +4,7 @@ import sqlite3
 import random
 import hashlib
 import string
+import json
 import os
 from io import BytesIO
 from reportlab.lib.pagesizes import letter
@@ -28,7 +29,6 @@ DB_FILE = "prescriptions.db"
 # -------------------
 @app.context_processor
 def inject_user():
-    # This ensures templates can always reference `username` and `role`
     return {
         'username': session.get('username'),
         'role': session.get('role')
@@ -37,10 +37,13 @@ def inject_user():
 # -------------------
 # Helper Functions
 # -------------------
-
 def init_db():
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
+
+    c.execute('''
+        DROP TABLE IF EXISTS prescriptions;
+    ''')
     
     # Create new table with hash column
     c.execute('''
@@ -153,8 +156,8 @@ def parse_prescription_text(text):
             meds = line.split(':')[-1].strip()
             if meds:
                 data['medications'] = [m.strip() for m in meds.split(',')]
+                data['medications'] = data['medications'][2:]
             else:
-                # grab next lines
                 j = i + 1
                 while j < len(lines) and not any(k in lines[j].lower() for k in ['doctor','patient','code','date']):
                     data['medications'].append(lines[j].strip())
@@ -182,10 +185,8 @@ def role_required(role):
 # -------------------
 # Routes
 # -------------------
-
 @app.route('/')
 def home():
-    # templates can use `username` and `role` directly thanks to inject_user()
     return render_template('home.html')
 
 @app.route('/signup', methods=['GET','POST'])
@@ -247,11 +248,14 @@ def create():
         date = request.form['date']
         medications = request.form['medications'].split(',')
         code = generate_code()
-        previous_code = get_previous_code()
+        previous_code = get_previous_hash()
         add_prescription(code, previous_code, doctor_name, doctor_id, patient_name, date, medications)
         return render_template('created.html', code=code)
     return render_template('create.html')
 
+# -------------------
+# VERIFY ROUTE
+# -------------------
 @app.route('/verify', methods=['GET','POST'])
 @login_required
 @role_required('verifier')
@@ -261,7 +265,7 @@ def verify():
         file = request.files.get('prescription')
         parsed_from_file = None
 
-        # Parse file if uploaded
+        # Parse uploaded file if exists
         if file and file.filename != '':
             file.seek(0)
             fname = file.filename.lower()
@@ -278,23 +282,23 @@ def verify():
                     qr_data = decode(img)
                     if qr_data:
                         code = qr_data[0].data.decode('utf-8')
-                    else:
-                        file.seek(0)
-                        file_bytes = file.read()
-                        response = requests.post(
-                            "https://api.ocr.space/parse/image",
-                            files={"filename": ("image.png", file_bytes)},
-                            data={"apikey": OCR_API_KEY, "language": "eng"}
-                        )
-                        result = response.json()
-                        parsed_results = result.get("ParsedResults")
-                        if parsed_results:
-                            extracted_text = parsed_results[0].get("ParsedText", "")
-                            parsed_from_file = parse_prescription_text(extracted_text)
+                    file.seek(0)
+                    file_bytes = file.read()
+                    response = requests.post(
+                        "https://api.ocr.space/parse/image",
+                        files={"filename": ("image.png", file_bytes)},
+                        data={"apikey": OCR_API_KEY, "language": "eng"}
+                    )
+                    result = response.json()
+                    parsed_results = result.get("ParsedResults")
+                    if parsed_results:
+                        extracted_text = parsed_results[0].get("ParsedText", "")
+                        parsed_from_file = parse_prescription_text(extracted_text)
             except Exception as e:
                 print("File parse error:", e)
 
-        # Verify code
+        # Try database verification
+        db_entry = None
         if code:
             print("code")
             db_entry = get_prescription(code)
@@ -309,40 +313,53 @@ def verify():
                                    patient_name=patient_name, date=date, medications=medications, is_verified=is_verified)
 
         # If no code but parsed from file
-        if parsed_from_file and parsed_from_file.get('code'):
-            print("parse")
-            db_entry = get_prescription(parsed_from_file['code'])
-            if db_entry:
-                doctor_name, doctor_id, patient_name, date, medications = db_entry[1], db_entry[2], db_entry[3], db_entry[4], db_entry[5].split(',')
+        elif parsed_from_file:
+            # Match using other fields if code missing
+            conn = sqlite3.connect(DB_FILE)
+            c = conn.cursor()
+            query = "SELECT * FROM prescriptions WHERE doctor_name=? AND patient_name=? AND date=?"
+            c.execute(query, (
+                parsed_from_file.get('doctor_name', ''),
+                parsed_from_file.get('patient_name', ''),
+                parsed_from_file.get('date', '')
+            ))
+            db_entry = c.fetchone()
+            conn.close()
 
-                prescription_data = {
-                    'code': parsed_from_file["code"],
-                    'doctor_name': parsed_from_file["doctor_name"],
-                    'doctor_id': parsed_from_file["doctor_id"],
-                    'patient_name': parsed_from_file["patient_name"],
-                    'date': parsed_from_file["date"],
-                    'medications': parsed_from_file["medications"]
-                }
+        if db_entry:
+            db_data = {
+                'code': db_entry[0],
+                'doctor_name': db_entry[1],
+                'doctor_id': db_entry[2],
+                'patient_name': db_entry[3],
+                'date': db_entry[4],
+                'medications': db_entry[5].split(',')
+            }
+            is_verified = True
+            return render_template('verify_result.html',
+                code=db_data['code'],
+                doctor_name=db_data['doctor_name'],
+                doctor_id=db_data['doctor_id'],
+                patient_name=db_data['patient_name'],
+                date=db_data['date'],
+                medications=db_data['medications'],
+                is_verified=is_verified
+            )
 
-                print("prescription_data")
+        # No match found, show parsed fields if any
+        if parsed_from_file:
+            return render_template('verify_result.html',
+                code=parsed_from_file.get('code',''),
+                doctor_name=parsed_from_file.get('doctor_name',''),
+                doctor_id=parsed_from_file.get('doctor_id',''),
+                patient_name=parsed_from_file.get('patient_name',''),
+                date=parsed_from_file.get('date',''),
+                medications=parsed_from_file.get('medications',[]),
+                is_verified=False
+            )
 
-                stored_hash = db_entry[6]
-                user_hash = generate_hash
-                print(stored_hash)
-                print(user_hash)
-                is_verified = stored_hash == user_hash
-                return render_template('verify_result.html', code=parsed_from_file['code'], doctor_name=doctor_name,
-                                       doctor_id=doctor_id, patient_name=patient_name, date=date,
-                                       medications=medications, is_verified=is_verified)
-            else:
-                return render_template('verify_result.html', code=parsed_from_file.get('code',''),
-                                       doctor_name=parsed_from_file.get('doctor_name',''),
-                                       doctor_id=parsed_from_file.get('doctor_id',''),
-                                       patient_name=parsed_from_file.get('patient_name',''),
-                                       date=parsed_from_file.get('date',''),
-                                       medications=parsed_from_file.get('medications',[]),
-                                       is_verified=False)
-        return "Cannot detect prescription code or extract prescription data from the uploaded file."
+        # Completely empty/no data
+        return render_template('verify.html', error="Invalid file or no prescription data could be found.")
     return render_template('verify.html')
 
 # -------------------
