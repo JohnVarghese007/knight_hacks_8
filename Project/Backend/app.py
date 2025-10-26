@@ -2,6 +2,7 @@ from flask import Flask, request, send_file, session, redirect, url_for, render_
 import requests
 import sqlite3
 import random
+import hashlib
 import string
 import os
 from io import BytesIO
@@ -120,6 +121,14 @@ def get_prescription(code):
     result = c.fetchone()
     conn.close()
     return result
+
+def generate_prescription_hash(prescription_data):
+    data_string = json.dumps(prescription_data, sort_keys=True)
+
+    hash_object = hashlib.sha256(data_string.encode())
+    prescription_hash = hash_object.hexdigest()
+
+    return prescription_hash
 
 def parse_prescription_text(text):
     """Simple heuristic parser."""
@@ -294,16 +303,34 @@ def verify():
               
             # Show DB entry
             doctor_name, doctor_id, patient_name, date, medications = db_entry[1], db_entry[2], db_entry[3], db_entry[4], db_entry[5].split(',')
+            stored_hash = db_entry[6]
             is_verified = True
             return render_template('verify_result.html', code=code, doctor_name=doctor_name, doctor_id=doctor_id,
                                    patient_name=patient_name, date=date, medications=medications, is_verified=is_verified)
 
         # If no code but parsed from file
         if parsed_from_file and parsed_from_file.get('code'):
+            print("parse")
             db_entry = get_prescription(parsed_from_file['code'])
             if db_entry:
                 doctor_name, doctor_id, patient_name, date, medications = db_entry[1], db_entry[2], db_entry[3], db_entry[4], db_entry[5].split(',')
-                is_verified = True
+
+                prescription_data = {
+                    'code': parsed_from_file["code"],
+                    'doctor_name': parsed_from_file["doctor_name"],
+                    'doctor_id': parsed_from_file["doctor_id"],
+                    'patient_name': parsed_from_file["patient_name"],
+                    'date': parsed_from_file["date"],
+                    'medications': parsed_from_file["medications"]
+                }
+
+                print("prescription_data")
+
+                stored_hash = db_entry[6]
+                user_hash = generate_hash
+                print(stored_hash)
+                print(user_hash)
+                is_verified = stored_hash == user_hash
                 return render_template('verify_result.html', code=parsed_from_file['code'], doctor_name=doctor_name,
                                        doctor_id=doctor_id, patient_name=patient_name, date=date,
                                        medications=medications, is_verified=is_verified)
